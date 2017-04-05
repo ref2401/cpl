@@ -130,12 +130,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ProjectReference Include="tpl.vcxproj">
-      <Project>{8536e6b6-7c5b-4820-b10e-9757e06d20fb}</Project>
-    </ProjectReference>
+    <ClCompile Include="..\src\example\main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\example\main.cpp" />
+    <ProjectReference Include="cpl.vcxproj">
+      <Project>{8536e6b6-7c5b-4820-b10e-9757e06d20fb}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

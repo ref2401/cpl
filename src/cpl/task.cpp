@@ -1,4 +1,4 @@
-#include "tpl/task.h"
+#include "cpl/task.h"
 
 #include <cassert>
 #include <memory>
@@ -6,7 +6,7 @@
 
 namespace {
 
-using namespace tpl;
+using namespace cpl;
 
 class task_system;
 
@@ -40,7 +40,7 @@ private:
 } // namespace
 
 
-namespace tpl {
+namespace cpl {
 
 void init_task_system(const task_system_desc& desc)
 {
@@ -56,4 +56,4 @@ void terminate_task_system()
 	g_task_system.reset();
 }
 
-} // namespace tpl
+} // namespace cpl

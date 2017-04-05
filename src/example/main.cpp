@@ -1,5 +1,5 @@
 #include <iostream>
-#include "tpl/task.h"
+#include "cpl/task.h"
 
 
 void do_something()
@@ -20,11 +20,11 @@ void main(int argc, char* argv[])
 		k += 24;
 	};
 
-	tpl::task tasks[3] = {
-		tpl::task(lb),
-		tpl::task(func),
-		tpl::task(do_something)
+	cpl::task tasks[3] = {
+		cpl::task(lb),
+		cpl::task(func),
+		cpl::task(do_something)
 	};
 
-	tpl::run_tasks(tasks);
+	cpl::run_tasks(tasks);
 }

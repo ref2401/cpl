@@ -1,8 +1,6 @@
-#include "tpl/task.h"
-
 #include "CppUnitTest.h"
 
-using namespace tpl;
+
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 
