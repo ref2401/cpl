@@ -22,6 +22,7 @@
     <ClCompile Include="..\src\cpl\task.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\inlcude\cpl\concurrency_queue.h" />
     <ClInclude Include="..\inlcude\cpl\task.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

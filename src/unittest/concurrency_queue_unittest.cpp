@@ -1,16 +1,18 @@
-#include "CppUnitTest.h"
+#include "cpl/concurrency_queue.h"
 
+#include "CppUnitTest.h"
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 
 namespace unittest {	
 
-TEST_CLASS(UnitTest1) {
+TEST_CLASS(concurrency_queue) {
 public:
 
-	TEST_METHOD(TestMethod1)
+	TEST_METHOD(ctors)
 	{
+
 	}
 };
 
