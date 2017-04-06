@@ -5,13 +5,16 @@
 #include <condition_variable>
 #include <mutex>
 #include <queue>
+#include <type_traits>
 
+
+namespace cpl {
 
 template<typename T>
-class concurrency_queue final {
+class concurrent_queue final {
 public:
 
-	concurrency_queue() noexcept
+	concurrent_queue() noexcept
 		: _wait_allowed(true)
 	{}
 
@@ -20,9 +23,20 @@ public:
 
 	bool empty() const;
 
-	void push(T&& v);
-
 	size_t size() const;
+
+	void lock() const 
+	{ 
+		_mutex.lock(); 
+	}
+
+	void unlock() const 
+	{
+		_mutex.unlock();
+	}
+
+	template<typename U>
+	void push(U&& v);
 
 	bool try_pop(T& out_v);
 
@@ -31,43 +45,46 @@ public:
 private:
 
 	std::queue<T> _queue;
-	std::mutex _mutex;
+	mutable std::mutex _mutex;
 	std::condition_variable _not_empty_condition;
 	std::atomic_bool _wait_allowed;
 };
 
 
 //template<typename T>
-//void concurrency_queue<T>::clear()
+//void concurrent_queue<T>::clear()
 //{
 //	std::lock_guard<std::mutex> lock(_mutex);
 //	
 //}
 
 template<typename T>
-bool concurrency_queue<T>::empty() const
+bool concurrent_queue<T>::empty() const
 {
 	std::lock_guard<std::mutex> lock(_mutex);
 	return _queue.empty();
 }
 
 template<typename T>
-void concurrency_queue<T>::push(T&& v)
+template<typename U>
+void concurrent_queue<T>::push(U&& v)
 {
-	std::lock_quard<std::mutex> lock(_mutex);
-	_queue.push(std::forward<T>(v));
+	static_assert(std::is_same<T, std::remove_reference<U>::type>::value, "U must be implicitly convertible to T.");
+
+	std::lock_guard<std::mutex> lock(_mutex);
+	_queue.push(std::forward<U>(v));
 	_not_empty_condition.notify_one();
 }
 
 template<typename T>
-size_t concurrency_queue<T>::size() const
+size_t concurrent_queue<T>::size() const
 {
 	std::lock_guard<std::mutex> lock(_mutex);
 	return _queue.size();
 }
 
 template<typename T>
-bool concurrency_queue<T>::try_pop(T& out_v)
+bool concurrent_queue<T>::try_pop(T& out_v)
 {
 	std::lock_guard<std::mutex> lock(_mutex);
 	if (_queue.empty()) return false;
@@ -79,7 +96,7 @@ bool concurrency_queue<T>::try_pop(T& out_v)
 }
 
 template<typename T>
-bool concurrency_queue<T>::wait_pop(T& out_v)
+bool concurrent_queue<T>::wait_pop(T& out_v)
 {
 	std::unique_lock<std::mutex> lock(_mutex);
 	_not_empty_condition.wait(lock, [this] { return !_queue.empty(); });
@@ -89,5 +106,7 @@ bool concurrency_queue<T>::wait_pop(T& out_v)
 
 	return true;
 }
+
+} // namespace cpl
 
 #endif // CPL_CONCURRENCY_QUEUE_H_

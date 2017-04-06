@@ -5,6 +5,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\inlcude\cpl\task.h" />
-    <ClInclude Include="..\inlcude\cpl\concurrency_queue.h" />
+    <ClInclude Include="..\inlcude\cpl\concurrent_queue.h" />
   </ItemGroup>
 </Project>
