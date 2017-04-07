@@ -24,6 +24,7 @@
   <ItemGroup>
     <ClInclude Include="..\inlcude\cpl\concurrent_queue.h" />
     <ClInclude Include="..\inlcude\cpl\task.h" />
+    <ClInclude Include="..\inlcude\cpl\utility.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
