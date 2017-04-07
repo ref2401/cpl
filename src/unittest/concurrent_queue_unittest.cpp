@@ -1,6 +1,7 @@
 #include "cpl/concurrent_queue.h"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <numeric>
 #include <thread>
@@ -77,7 +78,7 @@ public:
 			// get values from the queue and put them back into [begin, end)
 			for (auto i = begin; i != end; ++i) {
 				int v;
-				while (!queue.try_pop(v)) ;
+				while (!queue.try_pop(v)) { ; }
 				
 				*i = v;
 			}
@@ -116,6 +117,20 @@ public:
 
 		std::sort(actual_vector.begin(), actual_vector.end());
 		Assert::IsTrue(std::equal(origin_vector.cbegin(), origin_vector.cend(), actual_vector.cbegin()));
+	}
+
+	TEST_METHOD(push_wait_allowed)
+	{
+		concurrent_queue<int> queue;
+		std::atomic_bool wait_flag(true);
+
+		std::thread waiter([&queue, &wait_flag] {
+			int v;
+			queue.wait_pop(v, wait_flag);
+		});
+
+		wait_flag = false;
+		waiter.join(); // if wait_flag does not work, we are going to wait forever }:]
 	}
 };
 

@@ -1,4 +1,7 @@
+#include <atomic>
 #include <iostream>
+#include <mutex>
+#include <type_traits>
 #include "cpl/task.h"
 
 
@@ -8,8 +11,12 @@ void do_something()
 	k += 2;
 }
 
+
 void main(int argc, char* argv[])
 {
+	std::cout << std::is_move_constructible<int>::value << std::endl;
+	std::cout << std::is_move_assignable<std::atomic_bool>::value << std::endl;
+
 	auto lb = []() {
 		int k = 0;
 		++k;

@@ -14,9 +14,10 @@ template<typename T>
 class concurrent_queue final {
 public:
 
-	concurrent_queue() noexcept
-		: _wait_allowed(true)
-	{}
+	concurrent_queue() = default;
+
+	concurrent_queue(const concurrent_queue&) = delete;
+	concurrent_queue& operator=(const concurrent_queue&) = delete;
 
 
 	//void clear();
@@ -25,29 +26,21 @@ public:
 
 	size_t size() const;
 
-	void lock() const 
-	{ 
-		_mutex.lock(); 
-	}
-
-	void unlock() const 
-	{
-		_mutex.unlock();
-	}
-
 	template<typename U>
 	void push(U&& v);
 
+	// Tries to pop a value from the queue. If the queue is empty returns false and leaves out_v unchanged.
 	bool try_pop(T& out_v);
 
-	bool wait_pop(T& out_v);
+	// Blocks if the queue empty and it's allowed to wait (wait_allowed == true)
+	bool wait_pop(T& out_v, const std::atomic_bool& wait_allowed = true);
+
 
 private:
 
 	std::queue<T> _queue;
 	mutable std::mutex _mutex;
 	std::condition_variable _not_empty_condition;
-	std::atomic_bool _wait_allowed;
 };
 
 
@@ -96,10 +89,16 @@ bool concurrent_queue<T>::try_pop(T& out_v)
 }
 
 template<typename T>
-bool concurrent_queue<T>::wait_pop(T& out_v)
+bool concurrent_queue<T>::wait_pop(T& out_v, const std::atomic_bool& wait_allowed)
 {
 	std::unique_lock<std::mutex> lock(_mutex);
-	_not_empty_condition.wait(lock, [this] { return !_queue.empty(); });
+	_not_empty_condition.wait(lock, [this, &wait_allowed] 
+	{ 
+		// wait until the queue is empty and waiting is allowed.
+		return !(_queue.empty() && wait_allowed); 
+	});
+
+	if (!wait_allowed) return false;
 
 	out_v = std::move(_queue.front());
 	_queue.pop();
