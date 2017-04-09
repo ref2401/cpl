@@ -106,8 +106,8 @@ public:
 		Assert::IsTrue(queue.empty());
 		Assert::AreEqual<size_t>(0, queue.size());
 
-		// test index circling in the buffer
-		// we can't check indices directly but we can make sure the buffer works fine
+		// test index circling in the buffer_
+		// we can't check indices directly but we can make sure the buffer_ works fine
 		// push 4
 		Assert::IsTrue(queue.try_push(4));
 		Assert::IsFalse(queue.empty());
