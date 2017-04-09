@@ -22,6 +22,7 @@ public:
 		concurrent_queue<int> queue(4);
 		Assert::IsTrue(queue.empty());
 		Assert::AreEqual<size_t>(0, queue.size());
+		Assert::IsTrue(queue.wait_allowed());
 	}
 
 	TEST_METHOD(push_pop_one_thread)
@@ -67,15 +68,15 @@ public:
 		std::vector<int> actual_vector = origin_vector;
 
 		// worker_func acts as a producer and a consumer interchangeable.
-		// puts all the values from [begin, end) to the queue.
+		// puts all the values from [begin, end) to the queue_.
 		auto worker_func = [&queue, &actual_vector](it_t begin, it_t end) 
 		{
-			// put values into the queue
+			// put values into the queue_
 			for (auto i = begin; i != end; ++i)
 				queue.push(*i);
 
 			// try_pop
-			// get values from the queue and put them back into [begin, end)
+			// get values from the queue_ and put them back into [begin, end)
 			for (auto i = begin; i != end; ++i) {
 				int v;
 				while (!queue.try_pop(v)) { ; }
@@ -84,11 +85,11 @@ public:
 			}
 
 			// wait_pop
-			// put values into the queue again
+			// put values into the queue_ again
 			for (auto i = begin; i != end; ++i)
 				queue.push(*i);
 
-			// get values from the queue and put them back into [begin, end)
+			// get values from the queue_ and put them back into [begin, end)
 			for (auto i = begin; i != end; ++i) {
 				int v;
 				queue.wait_pop(v);
@@ -122,14 +123,13 @@ public:
 	TEST_METHOD(push_wait_allowed)
 	{
 		concurrent_queue<int> queue(1);
-		std::atomic_bool wait_flag(true);
 
-		std::thread waiter([&queue, &wait_flag] {
+		std::thread waiter([&queue] {
 			int v;
-			queue.wait_pop(v, wait_flag);
+			queue.wait_pop(v);
 		});
 
-		wait_flag = false;
+		queue.set_wait_allowed(false);
 		waiter.join(); // if wait_flag does not work, we are going to wait forever }:]
 	}
 };
