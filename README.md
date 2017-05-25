@@ -39,16 +39,35 @@ Fiber_pool
 
 void do_something();
 void do_something_else(int);
+void process_objects(it begin, it end);
 
 void main() {
-	task_system ts;
+	init_task_system();
+	finalize_task_system();
 
-	task_counter tc_0 = run_task(do_something);
-	wait_for(tc_0, 1);
+	// standalone tasks
+	task t0(do_something);
+	run_task(t0);
 
-	task_desc td(do_something_else, 24);
-	task_counter tc_1 = run_task(td);
-	wait_for(tc_1, 1);
+	task t1(do_something_else, 24);
+	run_task(t1);
+
+	wait_for(t0, t1);
+	// assert if any task has not been run;
+
+
+	// map pattern (with tiling)
+	task task_array[tile_count];
+	object object_array[object_count] = { ... };
+	size_t tile_object_count = object_count / tile_count;
+	
+	for [0, tile_count) {
+		it begin = object_array + i * tile_object_count;
+		it end = begin + tile_object_count;
+		task_array[i] = task(process_objects, begin, end);
+	}
+
+	wait_for(task_array);
 }
 
 
