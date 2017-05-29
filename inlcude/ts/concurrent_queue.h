@@ -1,5 +1,5 @@
-#ifndef CPL_CONCURRENCY_QUEUE_H_
-#define CPL_CONCURRENCY_QUEUE_H_
+#ifndef TS_CONCURRENCY_QUEUE_H_
+#define TS_CONCURRENCY_QUEUE_H_
 
 #include <cassert>
 #include <atomic>
@@ -7,10 +7,10 @@
 #include <mutex>
 #include <queue>
 #include <type_traits>
-#include "cpl/utility.h"
+#include "ts/utility.h"
 
 
-namespace cpl {
+namespace ts {
 
 template<typename T>
 class concurrent_queue final {
@@ -118,6 +118,6 @@ bool concurrent_queue<T>::wait_pop(T& out_v)
 	return queue_.try_pop(out_v);
 }
 
-} // namespace cpl
+} // namespace ts
 
-#endif // CPL_CONCURRENCY_QUEUE_H_
+#endif // TS_CONCURRENCY_QUEUE_H_

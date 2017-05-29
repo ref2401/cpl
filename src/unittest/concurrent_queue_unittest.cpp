@@ -1,4 +1,4 @@
-#include "cpl/concurrent_queue.h"
+#include "ts/concurrent_queue.h"
 
 #include <algorithm>
 #include <atomic>
@@ -8,7 +8,7 @@
 #include <vector>
 #include "CppUnitTest.h"
 
-using cpl::concurrent_queue;
+using ts::concurrent_queue;
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 

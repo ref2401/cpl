@@ -78,12 +78,12 @@
     <IntDir>$(SolutionDir)..\bin\$(Configuration)_$(Platform)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(SolutionDir)..\bin\$(Configuration)_$(Platform)\</OutDir>
-    <IntDir>$(SolutionDir)..\bin\$(Configuration)_$(Platform)\$(ProjectName)\</IntDir>
+    <OutDir>$(SolutionDir)..\bin\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)..\bin\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)..\bin\$(Configuration)_$(Platform)\</OutDir>
-    <IntDir>$(SolutionDir)..\bin\$(Configuration)_$(Platform)\$(ProjectName)\</IntDir>
+    <OutDir>$(SolutionDir)..\bin\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)..\bin\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -133,7 +133,7 @@
     <ClCompile Include="..\src\example\main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="cpl.vcxproj">
+    <ProjectReference Include="ts.vcxproj">
       <Project>{8536e6b6-7c5b-4820-b10e-9757e06d20fb}</Project>
     </ProjectReference>
   </ItemGroup>

@@ -1,11 +1,11 @@
-#ifndef CPL_UTILITY_H_
-#define CPL_UTILITY_H_
+#ifndef TS_UTILITY_H_
+#define TS_UTILITY_H_
 
 #include <cassert>
 #include <vector>
 
 
-namespace cpl {
+namespace ts {
 
 template<typename T>
 class ring_buffer final {
@@ -16,12 +16,9 @@ public:
 	explicit ring_buffer(size_t size_limit);
 
 	ring_buffer(const ring_buffer<T>&) = default;
-
-	ring_buffer(ring_buffer<T>&& rb) noexcept;
-
-
 	ring_buffer<T>& operator=(const ring_buffer<T>&) = default;
 
+	ring_buffer(ring_buffer<T>&& rb) noexcept;
 	ring_buffer<T>& operator=(ring_buffer<T>&& rb) noexcept;
 
 
@@ -57,8 +54,7 @@ private:
 template<typename T>
 ring_buffer<T>::ring_buffer(size_t size_limit)
 	: buffer_(size_limit)
-{
-}
+{}
 
 template<typename T>
 ring_buffer<T>::ring_buffer(ring_buffer<T>&& rb) noexcept
@@ -114,6 +110,6 @@ bool ring_buffer<T>::try_pop(T& out_v)
 	return true;
 }
 
-} // namespace
+} // namespace ts
 
-#endif // CPL_UTILITY_H_
+#endif // TS_UTILITY_H_

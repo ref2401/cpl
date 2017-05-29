@@ -1,12 +1,12 @@
-#ifndef CPL_TASK_H_
-#define CPL_TASK_H_
+#ifndef TS_TASK_H_
+#define TS_TASK_H_
 
 #include <functional>
 #include <type_traits>
 #include <utility>
 
 
-namespace cpl {
+namespace ts {
 
 struct task final {
 
@@ -38,6 +38,6 @@ void run_tasks(const task(&tasks)[count])
 		tasks[i].func();
 }
 
-} // namespace cpl
+} // namespace ts
 
-#endif // CPL_TASK_H_
+#endif // TS_TASK_H_

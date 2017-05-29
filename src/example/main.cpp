@@ -2,7 +2,7 @@
 #include <iostream>
 #include <mutex>
 #include <type_traits>
-#include "cpl/task.h"
+#include "ts/task.h"
 
 
 void do_something()
@@ -27,11 +27,11 @@ void main(int argc, char* argv[])
 		k += 24;
 	};
 
-	cpl::task tasks[3] = {
-		cpl::task(lb),
-		cpl::task(func),
-		cpl::task(do_something)
+	ts::task tasks[3] = {
+		ts::task(lb),
+		ts::task(func),
+		ts::task(do_something)
 	};
 
-	cpl::run_tasks(tasks);
+	ts::run_tasks(tasks);
 }

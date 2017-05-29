@@ -1,4 +1,4 @@
-#include "cpl/utility.h"
+#include "ts/utility.h"
 
 #include "CppUnitTest.h"
 
@@ -12,19 +12,19 @@ public:
 
 	TEST_METHOD(assign_operator)
 	{
-		cpl::ring_buffer<int> rb(3);
+		ts::ring_buffer<int> rb(3);
 		rb.try_push(1);
 		rb.try_push(2);
 
 		// copy assign
-		cpl::ring_buffer<int> rb_c;
+		ts::ring_buffer<int> rb_c;
 		rb_c = rb;
 		Assert::IsFalse(rb_c.empty());
 		Assert::AreEqual<size_t>(rb.size(), rb_c.size());
 		Assert::AreEqual<size_t>(rb.size_limit(), rb_c.size_limit());
 
 		// move assign
-		cpl::ring_buffer<int> rb_m;
+		ts::ring_buffer<int> rb_m;
 		rb_m = std::move(rb_c);
 		Assert::IsFalse(rb_m.empty());
 		Assert::AreEqual<size_t>(rb.size(), rb_m.size());
@@ -36,12 +36,12 @@ public:
 
 	TEST_METHOD(ctor)
 	{
-		cpl::ring_buffer<int> rb_0;
+		ts::ring_buffer<int> rb_0;
 		Assert::IsTrue(rb_0.empty());
 		Assert::AreEqual<size_t>(0, rb_0.size());
 		Assert::AreEqual<size_t>(0, rb_0.size_limit());
 
-		cpl::ring_buffer<int> rb_1(3);
+		ts::ring_buffer<int> rb_1(3);
 		Assert::IsTrue(rb_1.empty());
 		Assert::AreEqual<size_t>(0, rb_1.size());
 		Assert::AreEqual<size_t>(3, rb_1.size_limit());
@@ -49,13 +49,13 @@ public:
 		// copy ctor
 		rb_1.try_push(1);
 		rb_1.try_push(2);
-		cpl::ring_buffer<int> rb_c = rb_1;
+		ts::ring_buffer<int> rb_c = rb_1;
 		Assert::IsFalse(rb_c.empty());
 		Assert::AreEqual<size_t>(rb_1.size(), rb_c.size());
 		Assert::AreEqual<size_t>(rb_1.size_limit(), rb_c.size_limit());
 
 		// move ctor
-		cpl::ring_buffer<int> rb_m = std::move(rb_c);
+		ts::ring_buffer<int> rb_m = std::move(rb_c);
 		Assert::IsFalse(rb_m.empty());
 		Assert::AreEqual<size_t>(rb_1.size(), rb_m.size());
 		Assert::AreEqual<size_t>(rb_1.size_limit(), rb_m.size_limit());
@@ -66,7 +66,7 @@ public:
 	
 	TEST_METHOD(push_pop)
 	{
-		cpl::ring_buffer<int> queue(3);
+		ts::ring_buffer<int> queue(3);
 
 		// push 1
 		Assert::IsTrue(queue.try_push(1));
@@ -130,7 +130,7 @@ public:
 
 	TEST_METHOD(push_pop_empty_buffer)
 	{
-			cpl::ring_buffer<int> queue;
+			ts::ring_buffer<int> queue;
 			Assert::IsFalse(queue.try_push(24));
 
 			Assert::IsTrue(queue.empty());

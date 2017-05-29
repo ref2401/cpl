@@ -19,19 +19,19 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\cpl\task.cpp" />
+    <ClCompile Include="..\src\ts\task.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\inlcude\cpl\concurrent_queue.h" />
-    <ClInclude Include="..\inlcude\cpl\task.h" />
-    <ClInclude Include="..\inlcude\cpl\utility.h" />
+    <ClInclude Include="..\inlcude\ts\concurrent_queue.h" />
+    <ClInclude Include="..\inlcude\ts\task.h" />
+    <ClInclude Include="..\inlcude\ts\utility.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{8536E6B6-7C5B-4820-B10E-9757E06D20FB}</ProjectGuid>
-    <RootNamespace>cpl</RootNamespace>
+    <RootNamespace>ts</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
-    <ProjectName>cpl</ProjectName>
+    <ProjectName>ts</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -90,13 +90,13 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetExt>.lib</TargetExt>
-    <OutDir>$(SolutionDir)..\bin\$(Configuration)_$(Platform)\</OutDir>
-    <IntDir>$(SolutionDir)..\bin\$(Configuration)_$(Platform)\$(ProjectName)\</IntDir>
+    <OutDir>$(SolutionDir)..\bin\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)..\bin\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <TargetExt>.lib</TargetExt>
-    <OutDir>$(SolutionDir)..\bin\$(Configuration)_$(Platform)\</OutDir>
-    <IntDir>$(SolutionDir)..\bin\$(Configuration)_$(Platform)\$(ProjectName)\</IntDir>
+    <OutDir>$(SolutionDir)..\bin\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)..\bin\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
