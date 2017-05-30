@@ -1,23 +1,10 @@
 # cpl
 
-## design
-Thread {
-	std::thread _thread;
-	Fiber _{controling/head/main/}_fiber;
-};
-
-Task_system_desc {
-	thread_count
-	fiber_count
-};
-
-Task_queue (multiple?) owns tasks
-Task_system runs tasks using fibers from fiber pool
-Fiber_pool
-
 ## steps
 - concurrent_queue, ABA problem.
+- wait_for
 - task_system, run_tasks
+- map reduce
 - fork-join (task_counter)
 - fibers
 - more patterns from structured parallel programming

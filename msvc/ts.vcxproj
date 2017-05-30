@@ -19,11 +19,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\ts\task.cpp" />
+    <ClCompile Include="..\src\ts\task_system.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\inlcude\ts\concurrent_queue.h" />
-    <ClInclude Include="..\inlcude\ts\task.h" />
+    <ClInclude Include="..\inlcude\ts\task_system.h" />
     <ClInclude Include="..\inlcude\ts\utility.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

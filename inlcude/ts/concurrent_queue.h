@@ -109,7 +109,7 @@ bool concurrent_queue<T>::try_pop(T& out_v)
 template<typename T>
 bool concurrent_queue<T>::wait_pop(T& out_v)
 {
-	// wait until the queue_ is empty and waiting is allowed.
+	// We can wait while the queue_ is empty and waiting is allowed.
 	std::unique_lock<std::mutex> lock(mutex_);
 	not_empty_condition_.wait(lock, [this] { return !(queue_.empty() && wait_allowed_); });
 
