@@ -20,3 +20,61 @@
 - https://en.wikipedia.org/wiki/Fiber_(computer_science)
 - Portable Coroutine Library http://freecode.com/projects/libpcl/
 - CFiber http://www.flounder.com/fibers.htm
+
+```c++
+
+struct fiber final {};
+
+class fiber_thread final {};
+
+
+template<typename T>
+T get_current_fiber_data();
+
+void* get_current_fiber_data();
+
+
+
+struct task_system_context {
+	queue_high;
+	queue;
+	wait_list;
+	exec_flag;
+};
+
+
+void main_fiber_func(task_system_context ctx)
+{
+	fiber fbr;
+	ctx.fiber_pool.pop(fbr);
+	assert(has_system_object(fbr));
+	call(fbr);
+}
+
+void worker_fiber_func(void* data)
+{
+	// ? How exactly do I get the context ?
+	auto& ctx = get_task_system_context(data);
+
+	while (ctx.exec_flag) {
+		fiber fbr = find_available_fiber(ctx.wait_list);
+
+		if (has_system_object(fbr)) {
+			
+		}
+
+		task t;
+		bool res = ctx.queue.pop(t);
+		if (res) 
+			t.func();
+	}
+}
+
+void wait_for(exec_object exec_obj)
+{
+	auto& ctx = get_worker_context();
+	ctx.fiber_wait_list.push(ctx.curr_fiber, exec_obj);
+	switch_to_fiber(ctx.main_fiber);
+}
+
+```
