@@ -1,4 +1,5 @@
 #include <iostream>
+#include <atomic>
 #include "ts/task_system.h"
 #include "example/example.h"
 
@@ -11,6 +12,10 @@ void do_something(int a)
 
 void main(int argc, char* argv[])
 {
+	std::atomic_size_t wc = 10;
+	std::atomic_size_t* p_wc = &wc;
+	std::cout << (p_wc > 100) << std::endl;
+
 	ts::task_system_desc desc;
 	desc.high_queue_size = 8;
 	desc.queue_size = 128;

@@ -9,7 +9,7 @@ namespace ts {
 
 // ----- fiber -----
 
-fiber::fiber(void(*func)(void*), size_t stack_byte_limit, void* data = nullptr)
+fiber::fiber(void(*func)(void*), size_t stack_byte_limit, void* data)
 {
 	assert(func);
 	assert(stack_byte_limit > 0);

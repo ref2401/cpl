@@ -23,58 +23,108 @@
 
 ```c++
 
-struct fiber final {};
+struct task_system final {
+	std::vector<std::thread> 			worker_threads;
+	concurrent_vector<wait_list_entry>	fiber_wait_list(fiber_count);
+	fiber::fiber_pool 					fiber_pool(fiber_count, fiber_func);
+	concurrent_queue<task> 				queue_high(queue_high_size);
+	concurrent_queue<task> 				queue(queue_size);
+	task_system_report 					report;
+	std::atomic_bool 					exec_flag;
+	std::atomic_size_t					default_wait_counter;
+};
 
-class fiber_thread final {};
+std::unique_ptr<task_system> gp_task_system;
 
 
-template<typename T>
-T get_current_fiber_data();
+class fiber_wait_list {
+public:
 
-void* get_current_fiber_data();
+	fiber_wait_list(size_t);
 
 
+	void push_back(void* p_fiber, exec_object* p_exec_obj)
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		wait_list_.emplace_back(p_fiber, p_exec_obj);
+	}
 
-struct task_system_context {
-	queue_high;
-	queue;
-	wait_list;
-	exec_flag;
+	bool pop(void* p_fiber)
+	{
+		std::lock_guard<std::mutex> lock;
+
+		if (wait_list_.empty()) return false;
+
+		for (size_t i = wait_list_.size(); i > 0; --i) {
+			auto& entry = wait_list_[i - 1];
+
+			if (*entry.p_wait_counter == 0) {
+				// remove i
+				// place the last to i
+				p_fiber = entry.p_fiber;
+				return true;
+			}
+		}
+
+		return false;		
+	}
+
+
+private:
+
+	struct wait_list_entry final {
+		void* p_fiber;
+		std::atomic_size_t* p_wait_counter;
+	};
+
+	mutex_;
+	wait_list_;
+
+	fiber_list_;
+	counter_list_;
 };
 
 
-void main_fiber_func(task_system_context ctx)
+void thread_worker_func()
 {
-	fiber fbr;
-	ctx.fiber_pool.pop(fbr);
-	assert(has_system_object(fbr));
-	call(fbr);
+	// Gives the specified thread fiber nature.
+	fiber::fiber_thread ft(std::this_thread::native_handle());	
+
+	void* p_fbr = [!!!]gp_task_runtime->fiber_pool.pop();
+	fiber::switch_to_fiber(p_fbr);
 }
 
-void worker_fiber_func(void* data)
+void fiber_worker_func(void* data)
 {
-	// ? How exactly do I get the context ?
-	auto& ctx = get_task_system_context(data);
-
-	while (ctx.exec_flag) {
-		fiber fbr = find_available_fiber(ctx.wait_list);
-
-		if (has_system_object(fbr)) {
-			
+	while ([!!!]gp_task_system->exec_flag) {
+		
+		// check wait list
+		void* p_fbr;
+		bool res = [!!!]gp_task_system->fiber_wait_list.try_pop(p_fbr);
+		if (res) {
+			[!!!]gp_task_system->fiber_pool.push_back(fiber::current_fiber());		// avoid duplicates
+			fiber::switch_to_fiber(fbp_fbrr);	
 		}
 
+		// drain priority queue
+
+		// process regular tasks
 		task t;
-		bool res = ctx.queue.pop(t);
-		if (res) 
+		bool res = [!!!]gp_task_system->queue.pop(t);
+		if (res) {
 			t.func();
+			decrease_wait_counter(t.exec_object);
+		}
 	}
 }
 
-void wait_for(exec_object exec_obj)
+void wait_for(std::atomic_size_t& wait_counter)
 {
-	auto& ctx = get_worker_context();
-	ctx.fiber_wait_list.push(ctx.curr_fiber, exec_obj);
-	switch_to_fiber(ctx.main_fiber);
+	assert(wait_counter > 0);
+	[!!!]gp_task_runtime->fiber_wait_list.push_back(fiber::current_fiber(), &wait_counter);
+	
+	void* p_fbr = [!!!]gp_task_runtime->fiber_pool.pop();
+	fiber::switch_to_fiber(p_fbr);
 }
 
 ```
