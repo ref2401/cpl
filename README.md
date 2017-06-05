@@ -23,20 +23,6 @@
 
 ```c++
 
-struct task_system final {
-	std::vector<std::thread> 			worker_threads;
-	concurrent_vector<wait_list_entry>	fiber_wait_list(fiber_count);
-	fiber::fiber_pool 					fiber_pool(fiber_count, fiber_func);
-	concurrent_queue<task> 				queue_high(queue_high_size);
-	concurrent_queue<task> 				queue(queue_size);
-	task_system_report 					report;
-	std::atomic_bool 					exec_flag;
-	std::atomic_size_t					default_wait_counter;
-};
-
-std::unique_ptr<task_system> gp_task_system;
-
-
 class fiber_wait_list {
 public:
 
@@ -69,7 +55,6 @@ public:
 		return false;		
 	}
 
-
 private:
 
 	struct wait_list_entry final {
@@ -85,46 +70,130 @@ private:
 };
 
 
-void thread_worker_func()
-{
-	// Gives the specified thread fiber nature.
-	fiber::fiber_thread ft(std::this_thread::native_handle());	
+struct task final {
+	std::function<void()> func;
+	std::atomic_size_t* p_wait_counter;
+};
 
-	void* p_fbr = [!!!]gp_task_runtime->fiber_pool.pop();
-	fiber::switch_to_fiber(p_fbr);
+inline void exec_task(task& task)
+{
+	task.func();
+	
+	if (task.p_wait_counter) {
+		assert(*task.p_wait_counter > 0);
+		--(*task.p_wait_counter);
+	}
 }
+
+class task_system final {
+public:
+
+	void run(task_desc* p_tasks, size_t count)
+	{
+		assert(p_tasks);
+		assert(count > 0);
+
+		report_.task_count += count;
+
+		for (size_t i = 0; i < count; ++i) {
+			auto& td = p_tasks[i];
+			queue_.push(task{ std::move(td.func), nullptr });
+		}
+	}
+
+	void wait_for(std::atomic_size_t& wait_counter)
+	{
+		assert(wait_counter > 0);
+
+		// undefined behaviour: fiber is still running, but it's already in the wait list.
+		fiber_wait_list_.push_back(fiber::current_fiber(), &wait_counter);
+		fiber_pool_.switch_to_next_fiber();
+	}
+
+private:
+
+	static void thread_worker_func(fiber_pool& fiber_pool)
+	{
+		// Gives the specified thread fiber nature.
+		fiber::fiber_thread ft(std::this_thread::native_handle());	
+		fiber_system.execute_fiber();
+	}
+
+
+	std::vector<std::thread>		worker_threads_;
+	fiber::fiber_wait_list			fiber_wait_list_(fiber_count);
+	fiber::fiber_pool 				fiber_pool_(fiber_count, fiber_func);
+	concurrent_queue<task> 			queue_high_(queue_high_size);
+	concurrent_queue<task> 			queue_(queue_size);
+	task_system_report 				report_;
+	std::atomic_bool 				exec_flag_;
+};
+
+struct fiber_worker_context final {
+	fiber_system&				fiber_system;				
+	concurrent_queue<task>& 	queue_high;
+	concurrent_queue<task>& 	queue;
+	std::atomic_bool& 			exec_flag;
+};
 
 void fiber_worker_func(void* data)
 {
-	while ([!!!]gp_task_system->exec_flag) {
+	fiber_worker_context ctx = *static_cast<fiber_worker_context*>(data);
+
+	while (ctx.exec_flag) {
 		
-		// check wait list
-		void* p_fbr;
-		bool res = [!!!]gp_task_system->fiber_wait_list.try_pop(p_fbr);
-		if (res) {
-			[!!!]gp_task_system->fiber_pool.push_back(fiber::current_fiber());		// avoid duplicates
-			fiber::switch_to_fiber(fbp_fbrr);	
-		}
+		ctx.fiber_system.execute_waiting_fibers();
 
 		// drain priority queue
 
 		// process regular tasks
 		task t;
-		bool res = [!!!]gp_task_system->queue.pop(t);
-		if (res) {
-			t.func();
-			decrease_wait_counter(t.exec_object);
-		}
+		bool res = ctx.queue.pop(t);
+		if (res) exec_task(t);
 	}
 }
 
-void wait_for(std::atomic_size_t& wait_counter)
-{
-	assert(wait_counter > 0);
-	[!!!]gp_task_runtime->fiber_wait_list.push_back(fiber::current_fiber(), &wait_counter);
-	
-	void* p_fbr = [!!!]gp_task_runtime->fiber_pool.pop();
-	fiber::switch_to_fiber(p_fbr);
-}
+
+class fiber_system final {
+public:
+
+	fiber_system(size_t fiber_count, void (*fiber_func)(void*));
+
+
+	void execute_fiber()
+	{
+		void* p_fbr = nullptr;
+
+		{
+			std::lock_guard<std::mutex> lock(mutex_fiber_pool_);
+			p_fbr = fiber_pool_.pop();
+		}
+
+		fiber::switch_to_fiber(p_fbr);
+	}
+
+	void execute_waiting_fibers()
+	{
+		// priority tasks
+
+
+		void* p_fbr;
+		bool res = fiber_wait_list.try_pop(p_fbr);
+		
+		if (res) {
+			{
+				std::lock_guard<std::mutex> lock(mutex_fiber_pool_);
+				// avoid duplicates
+				// undefined behaviour: fiber is still running, but it's already in the pool.
+				fiber_pool.push_back(fiber::current_fiber());		
+			}
+
+			fiber::switch_to_fiber(p_fbr);	
+		}
+	}
+
+private:
+
+};
 
 ```
