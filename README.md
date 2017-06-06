@@ -5,9 +5,12 @@
 - 2 fibers cout << "something". test
 - wait_for
 - concurrent_queue, ABA problem.
+
+Examples:
 - map reduce
+- scan
 - fork-join (task_counter)
-- more patterns from structured parallel programming
+- some examples from structured parallel programming
  
 
 ## Bibliography
@@ -195,5 +198,60 @@ public:
 private:
 
 };
+
+
+
+class worker_thread final {
+public:
+
+	void run()
+	{
+		fiber::fiber_nature_thread fnt(std::this_thread::native_handle());	
+		fiber_to_exec_ = fiber_pool_.pop();
+
+		while (exec_flag_) {
+			fiber::switch_to_fiber(fiber_to_exec_);
+
+			if (p_wait_list_conuter_) {
+				fiber_wait_list_.push_back(fiber_to_exec_, p_wait_list_conuter_);
+				p_wait_list_conuter_ = nullptr;
+			}
+			else {
+				fiber::native_handle waitinig_fiber;
+				bool res = fiber_wait_list_.pop(waitinig_fiber);
+				if (res) {
+					fiber_pool_.push_back(fiber_to_exec_);
+					fiber_to_exec_ = waitinig_fiber;
+				}
+			}
+		}
+	}
+
+private:
+
+	fiber::fiber_pool& 		fiber_pool_;
+	fiber_wait_list&		fiber_wait_list_;
+	std::atomic_bool& 		exec_flag_;
+
+	fiber::native_handle 	fiber_to_exec_;
+	std::atomic_size_t*		p_wait_list_conuter_;
+};
+
+
+void worker_fiber_func(void* data)
+{
+	worker_fiber_context& ctx = *static_cast<worker_fiber_context*>(data);
+
+	while (ctx.exec_flag_) {
+		// drain priority queue
+
+		// process regular tasks
+		task t;
+		bool res = ctx.queue.try_pop(t);
+		if (res) exec_task(t);
+
+		fiber::switch_to_fiber(ctx. );
+	}
+}
 
 ```
