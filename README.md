@@ -25,71 +25,38 @@ Examples:
 - CFiber http://www.flounder.com/fibers.htm
 
 ```c++
+// thread.h
 
-class fiber_wait_list {
-public:
+struct fiber_nature_thread;
+class fiber_pool;
+class fiber_wait_list; // (std::atomic_size_to)
 
-	fiber_wait_list(size_t);
+void* current_fiber();
+void* fiber_data();
+switch_to_fiber(void* p_fiber);
 
 
-	void push_back(void* p_fiber, exec_object* p_exec_obj)
-	{
-		std::lock_guard<std::mutex> lock(mutex_);
-		wait_list_.emplace_back(p_fiber, p_exec_obj);
-	}
+// task_system.h
 
-	bool pop(void* p_fiber)
-	{
-		std::lock_guard<std::mutex> lock;
+struct task_system_state final {
 
-		if (wait_list_.empty()) return false;
+	task_system_state(size_t queue_high_size, size_t queue_size);
 
-		for (size_t i = wait_list_.size(); i > 0; --i) {
-			auto& entry = wait_list_[i - 1];
-
-			if (*entry.p_wait_counter == 0) {
-				// remove i
-				// place the last to i
-				p_fiber = entry.p_fiber;
-				return true;
-			}
-		}
-
-		return false;		
-	}
-
-private:
-
-	struct wait_list_entry final {
-		void* p_fiber;
-		std::atomic_size_t* p_wait_counter;
-	};
-
-	mutex_;
-	wait_list_;
-
-	fiber_list_;
-	counter_list_;
+	concurrent_queue<task> 	queue_high;
+	concurrent_queue<task> 	queue;
+	std::atomic_bool		exec_flag;
 };
 
-
-struct task final {
-	std::function<void()> func;
-	std::atomic_size_t* p_wait_counter;
+struct worker_fiber_context final {
+	static thread_local void* 				p_thread_main_fiber = nullptr;
+	static thread_local std::atomic_size_t* p_wait_list_counter_ = nullptr;
 };
-
-inline void exec_task(task& task)
-{
-	task.func();
-	
-	if (task.p_wait_counter) {
-		assert(*task.p_wait_counter > 0);
-		--(*task.p_wait_counter);
-	}
-}
 
 class task_system final {
 public:
+
+	task_system(...);
+
 
 	void run(task_desc* p_tasks, size_t count)
 	{
@@ -100,7 +67,7 @@ public:
 
 		for (size_t i = 0; i < count; ++i) {
 			auto& td = p_tasks[i];
-			queue_.push(task{ std::move(td.func), nullptr });
+			state_.queue.push(task{ std::move(td.func), nullptr });
 		}
 	}
 
@@ -108,149 +75,67 @@ public:
 	{
 		assert(wait_counter > 0);
 
-		// undefined behaviour: fiber is still running, but it's already in the wait list.
-		fiber_wait_list_.push_back(fiber::current_fiber(), &wait_counter);
-		fiber_pool_.switch_to_next_fiber();
+		worker_fiber_context::p_wait_list_counter_ = &wait_counter;
+		switch_to_fiber(worker_fiber_context::p_thread_main_fiber);
 	}
 
 private:
 
-	static void thread_worker_func(fiber_pool& fiber_pool)
+	static void worker_thread_main_func(fiber_pool& fiber_pool, fiber_wait_list& fiber_wait_list, std::atomic_bool& exec_flag)
 	{
-		// Gives the specified thread fiber nature.
-		fiber::fiber_thread ft(std::this_thread::native_handle());	
-		fiber_system.execute_fiber();
-	}
-
-
-	std::vector<std::thread>		worker_threads_;
-	fiber::fiber_wait_list			fiber_wait_list_(fiber_count);
-	fiber::fiber_pool 				fiber_pool_(fiber_count, fiber_func);
-	concurrent_queue<task> 			queue_high_(queue_high_size);
-	concurrent_queue<task> 			queue_(queue_size);
-	task_system_report 				report_;
-	std::atomic_bool 				exec_flag_;
-};
-
-struct fiber_worker_context final {
-	fiber_system&				fiber_system;				
-	concurrent_queue<task>& 	queue_high;
-	concurrent_queue<task>& 	queue;
-	std::atomic_bool& 			exec_flag;
-};
-
-void fiber_worker_func(void* data)
-{
-	fiber_worker_context ctx = *static_cast<fiber_worker_context*>(data);
-
-	while (ctx.exec_flag) {
+		// init the worker thread
+		thread_main_fiber 	tmf;	
+		void* 				p_fiber_to_exec = fiber_pool_.pop();
 		
-		ctx.fiber_system.execute_waiting_fibers();
-
-		// drain priority queue
-
-		// process regular tasks
-		task t;
-		bool res = ctx.queue.pop(t);
-		if (res) exec_task(t);
-	}
-}
-
-
-class fiber_system final {
-public:
-
-	fiber_system(size_t fiber_count, void (*fiber_func)(void*));
-
-
-	void execute_fiber()
-	{
-		void* p_fbr = nullptr;
-
-		{
-			std::lock_guard<std::mutex> lock(mutex_fiber_pool_);
-			p_fbr = fiber_pool_.pop();
-		}
-
-		fiber::switch_to_fiber(p_fbr);
-	}
-
-	void execute_waiting_fibers()
-	{
-		// priority tasks
-
-
-		void* p_fbr;
-		bool res = fiber_wait_list.try_pop(p_fbr);
+		// init fiber execution context
+		worker_fiber_context::p_thread_main_fiber = tmf.p_fiber;
+		worker_fiber_context::p_wait_list_counter = nullptr;
 		
-		if (res) {
-			{
-				std::lock_guard<std::mutex> lock(mutex_fiber_pool_);
-				// avoid duplicates
-				// undefined behaviour: fiber is still running, but it's already in the pool.
-				fiber_pool.push_back(fiber::current_fiber());		
-			}
+		// main loop
+		while (exec_flag) {
+			switch_to_fiber(p_fiber_to_exec);
 
-			fiber::switch_to_fiber(p_fbr);	
-		}
-	}
+			if (worker_fiber_context::p_wait_list_counter) {
+				fiber_wait_list.push_back(p_fiber_to_exec, worker_fiber_context::p_wait_list_counter);
+				worker_fiber_context::p_wait_list_counter = nullptr;
 
-private:
-
-};
-
-
-
-class worker_thread final {
-public:
-
-	void run()
-	{
-		fiber::fiber_nature_thread fnt(std::this_thread::native_handle());	
-		fiber_to_exec_ = fiber_pool_.pop();
-
-		while (exec_flag_) {
-			fiber::switch_to_fiber(fiber_to_exec_);
-
-			if (p_wait_list_conuter_) {
-				fiber_wait_list_.push_back(fiber_to_exec_, p_wait_list_conuter_);
-				p_wait_list_conuter_ = nullptr;
+				p_fiber_to_exec = fiber_pool.pop();
 			}
 			else {
-				fiber::native_handle waitinig_fiber;
-				bool res = fiber_wait_list_.pop(waitinig_fiber);
+				// waiting fiber
+				void* p_fpr;
+				bool res = fiber_wait_list.pop(p_fpr);
+
 				if (res) {
-					fiber_pool_.push_back(fiber_to_exec_);
-					fiber_to_exec_ = waitinig_fiber;
+					fiber_pool.push_back(p_fiber_to_exec);
+					p_fiber_to_exec = p_fpr;
 				}
 			}
-		}
+		} // while
+
 	}
 
-private:
-
-	fiber::fiber_pool& 		fiber_pool_;
-	fiber_wait_list&		fiber_wait_list_;
-	std::atomic_bool& 		exec_flag_;
-
-	fiber::native_handle 	fiber_to_exec_;
-	std::atomic_size_t*		p_wait_list_conuter_;
+	std::vector<std::thread>	worker_threads_;
+	fiber::fiber_wait_list		fiber_wait_list_(fiber_count);
+	fiber::fiber_pool 			fiber_pool_(fiber_count, fiber_func);
+	task_system_state			state_;
+	task_system_report 			report_;
 };
 
 
 void worker_fiber_func(void* data)
 {
-	worker_fiber_context& ctx = *static_cast<worker_fiber_context*>(data);
+	task_system_state& state = *static_cast<task_system_state*>(data);
 
-	while (ctx.exec_flag_) {
+	while (state.exec_flag) {
 		// drain priority queue
 
 		// process regular tasks
 		task t;
-		bool res = ctx.queue.try_pop(t);
+		bool res = state.queue.try_pop(t);
 		if (res) exec_task(t);
 
-		fiber::switch_to_fiber(ctx. );
+		switch_to_fiber(worker_fiber_context::p_thread_main_fiber);
 	}
 }
 
