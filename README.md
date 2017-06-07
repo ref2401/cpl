@@ -29,7 +29,6 @@ Examples:
 
 struct fiber_nature_thread;
 class fiber_pool;
-class fiber_wait_list; // (std::atomic_size_to)
 
 void* current_fiber();
 void* fiber_data();
@@ -37,6 +36,48 @@ switch_to_fiber(void* p_fiber);
 
 
 // task_system.h
+
+class fiber_wait_list {
+public:
+
+	fiber_wait_list(size_t);
+
+
+	void push_back(void* p_fiber, std::atomic_size_t* p_wait_counter)
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		wait_list_.emplace_back(p_fiber, p_exec_obj);
+	}
+
+	bool pop(void* p_fiber)
+	{
+		std::lock_guard<std::mutex> lock;
+
+		if (wait_list_.empty()) return false;
+
+		for (size_t i = wait_list_.size(); i > 0; --i) {
+			auto& entry = wait_list_[i - 1];
+
+			if (*entry.p_wait_counter == 0) {
+				p_fiber = entry.p_fiber;
+				wait_list_.remove_at(i);
+				return true;
+			}
+		}
+
+		return false;		
+	}
+
+private:
+
+	struct wait_list_entry final {
+		void* p_fiber;
+		std::atomic_size_t* p_wait_counter;
+	};
+
+	concurrent_vector<wait_list_entry> wait_list_;
+};
+
 
 struct task_system_state final {
 
@@ -122,6 +163,16 @@ private:
 	task_system_report 			report_;
 };
 
+
+inline void exec_task(task& task)
+{
+	task.func();
+	
+	if (task.p_wait_counter) {
+		assert(*task.p_wait_counter > 0);
+		--(*task.p_wait_counter);
+	}
+}
 
 void worker_fiber_func(void* data)
 {

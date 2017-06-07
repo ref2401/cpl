@@ -38,10 +38,10 @@ public:
 	template<typename U>
 	void push(U&& v);
 
-	// Tries to pop a value from the queue_. If the queue_ is empty returns false and leaves out_v unchanged.
+	// Tries to pop a value from the queue. If the queue is empty returns false and leaves out_v unchanged.
 	bool try_pop(T& out_v);
 
-	// Blocks if the queue_ empty and it's allowed to wait (wait_allowed == true).
+	// Blocks if the queue empty and it's allowed to wait (wait_allowed == true).
 	bool wait_pop(T& out_v);
 
 
@@ -90,8 +90,11 @@ void concurrent_queue<T>::emplace(Args&&... args)
 {
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
-		//bool
+		bool res = queue_.try_emplace(std::forward<Args>(args)...);
+		assert(res);
 	}
+
+	not_empty_condition_.notify_one();
 }
 
 template<typename T>
