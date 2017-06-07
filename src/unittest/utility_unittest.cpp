@@ -63,8 +63,45 @@ public:
 		Assert::AreEqual<size_t>(0, rb_c.size());
 		Assert::AreEqual<size_t>(0, rb_c.size_limit());
 	}
+
+	TEST_METHOD(try_emplace)
+	{
+		struct payload {
+			int value;
+		};
+
+		ts::ring_buffer<payload> queue(2);
+		// push 1
+		Assert::IsTrue(queue.try_emplace(1));
+		Assert::IsFalse(queue.empty());
+		Assert::AreEqual<size_t>(1, queue.size());
+		// push 2
+		Assert::IsTrue(queue.try_emplace(2));
+		Assert::IsFalse(queue.empty());
+		Assert::AreEqual<size_t>(2, queue.size());
+		// emplace fails due to size_limit
+		Assert::IsFalse(queue.try_emplace(42));
+		Assert::IsFalse(queue.empty());
+		Assert::AreEqual<size_t>(2, queue.size());
+
+		payload pl;
+		// pop 1
+		Assert::IsTrue(queue.try_pop(pl));
+		Assert::AreEqual(1, pl.value);
+		Assert::IsFalse(queue.empty());
+		Assert::AreEqual<size_t>(1, queue.size());
+		// pop 2
+		Assert::IsTrue(queue.try_pop(pl));
+		Assert::AreEqual(2, pl.value);
+		Assert::IsTrue(queue.empty());
+		Assert::AreEqual<size_t>(0, queue.size());
+		// pop fails due to size_limit
+		Assert::IsFalse(queue.try_pop(pl));
+		Assert::IsTrue(queue.empty());
+		Assert::AreEqual<size_t>(0, queue.size());
+	}
 	
-	TEST_METHOD(push_pop)
+	TEST_METHOD(try_push_try_pop)
 	{
 		ts::ring_buffer<int> queue(3);
 
@@ -128,7 +165,7 @@ public:
 		Assert::AreEqual<size_t>(0, queue.size());
 	}
 
-	TEST_METHOD(push_pop_empty_buffer)
+	TEST_METHOD(try_push_try_pop_empty_buffer)
 	{
 			ts::ring_buffer<int> queue;
 			Assert::IsFalse(queue.try_push(24));

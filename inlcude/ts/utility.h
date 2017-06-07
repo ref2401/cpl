@@ -2,6 +2,7 @@
 #define TS_UTILITY_H_
 
 #include <cassert>
+#include <type_traits>
 #include <vector>
 
 
@@ -37,6 +38,9 @@ public:
 		return buffer_.size();
 	}
 
+
+	template<typename... Args>
+	bool try_emplace(Args&&... args);
 
 	template<typename U>
 	bool try_push(U&& v);
@@ -86,9 +90,18 @@ ring_buffer<T>& ring_buffer<T>::operator=(ring_buffer<T>&& rb) noexcept
 }
 
 template<typename T>
+template<typename... Args>
+bool ring_buffer<T>::try_emplace(Args&&... args)
+{
+	return try_push(T { std::forward<Args>(args)... });
+}
+
+template<typename T>
 template<typename U>
 bool ring_buffer<T>::try_push(U&& v)
 {
+	static_assert(std::is_same<T, std::remove_reference<U>::type>::value, "U must be implicitly convertible to T.");
+
 	if (curr_count_ == buffer_.size()) return false;
 
 	buffer_[push_index_ % buffer_.size()] = std::forward<U>(v);

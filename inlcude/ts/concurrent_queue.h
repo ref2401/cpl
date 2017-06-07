@@ -6,7 +6,6 @@
 #include <condition_variable>
 #include <mutex>
 #include <queue>
-#include <type_traits>
 #include "ts/utility.h"
 
 
@@ -32,6 +31,9 @@ public:
 	}
 
 	void set_wait_allowed(bool flag);
+
+	template<typename... Args>
+	void emplace(Args&&... args);
 
 	template<typename U>
 	void push(U&& v);
@@ -80,6 +82,16 @@ void concurrent_queue<T>::set_wait_allowed(bool flag)
 	// notify all only if flag is false and the previous value was true.
 	if (!flag && prev != flag)
 		not_empty_condition_.notify_all();
+}
+
+template<typename T>
+template<typename... Args>
+void concurrent_queue<T>::emplace(Args&&... args)
+{
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		//bool
+	}
 }
 
 template<typename T>
