@@ -7,47 +7,89 @@
 
 namespace ts {
 
-// ----- fiber -----
+// ----- fiber_pool -----
 
-fiber::fiber(void(*func)(void*), size_t stack_byte_limit, void* data)
+fiber_pool::fiber_pool(size_t fiber_count, void(*func)(void*), size_t stack_byte_count, void* p_data)
 {
+	assert(fiber_count > 0);
 	assert(func);
-	assert(stack_byte_limit > 0);
+	assert(stack_byte_count);
 
-	p_sys_obj = CreateFiber(stack_byte_limit, func, data);
-	assert(p_sys_obj);
+	fibers_.reserve(fiber_count);
+	for (size_t i = 0; i < fiber_count; ++i)
+		fibers_.emplace_back(CreateFiber(stack_byte_count, func, p_data), false);
+
+	std::sort(fibers_.begin(), fibers_.end(), list_entry_comparer);
 }
 
-fiber::fiber(fiber&& fbr) noexcept
-	: p_sys_obj(fbr.p_sys_obj)
+fiber_pool::~fiber_pool() noexcept
 {
-	fbr.p_sys_obj = nullptr;
+	for (auto& e : fibers_) {
+		DeleteFiber(e.p_fiber);
+		e.p_fiber = nullptr;
+	}
 }
 
-fiber& fiber::operator=(fiber&& fbr) noexcept
+void fiber_pool::push_back(void* p_fbr)
 {
-	if (this == &fbr) return *this;
+	using it_t = decltype(fibers_)::iterator;
 
-	dispose();
+	assert(p_fbr);
+	std::lock_guard<std::mutex> lock(mutex_);
 
-	p_sys_obj = fbr.p_sys_obj;
-
-	fbr.p_sys_obj = nullptr;
-
-	return *this;
+	const list_entry entry = list_entry{ p_fbr, false };
+	it_t it = std::lower_bound(fibers_.begin(), fibers_.end(), entry, list_entry_comparer);
+	assert(it != fibers_.end());
+	
+	it->in_use = false;
 }
 
-fiber::~fiber() noexcept
+void* fiber_pool::pop()
 {
-	dispose();
+	using it_t = decltype(fibers_)::iterator;
+
+	std::lock_guard<std::mutex> lock(mutex_);
+	it_t it = std::find_if(fibers_.begin(), fibers_.end(), [](const list_entry& e) { return !e.in_use; });
+	
+	if (it == fibers_.end()) {
+		return nullptr;
+	}
+	else {
+		it->in_use = true;
+		return it->p_fiber;
+	}
 }
 
-void fiber::dispose() noexcept
-{
-	if (!p_sys_obj) return;
+// ----- thread_main_fiber -----
 
-	DeleteFiber(p_sys_obj);
-	p_sys_obj = nullptr;
+thread_main_fiber::thread_main_fiber()
+	: p_fiber(ConvertThreadToFiber(GetCurrentThread()))
+{
+	assert(p_fiber);
+	assert(GetLastError() != ERROR_ALREADY_FIBER);
+}
+
+thread_main_fiber::~thread_main_fiber()
+{
+	ConvertFiberToThread();
+}
+
+// ----- funcs -----
+
+void* current_fiber()
+{
+	return GetCurrentFiber();
+}
+
+void* fiber_data()
+{
+	return GetFiberData();
+}
+
+void switch_to_fiber(void* p_fbr) noexcept
+{
+	assert(p_fbr);
+	SwitchToFiber(p_fbr);
 }
 
 } // namespace ts
