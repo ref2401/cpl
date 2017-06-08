@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <numeric>
 #include <vector>
-#include "ts/task_system.h"
+#include "ts/ts.h"
 
 
 namespace example {

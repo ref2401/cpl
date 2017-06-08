@@ -15,9 +15,9 @@ fiber_pool::fiber_pool(size_t fiber_count, void(*func)(void*), size_t stack_byte
 	assert(func);
 	assert(stack_byte_count);
 
-	fibers_.reserve(fiber_count);
-	for (size_t i = 0; i < fiber_count; ++i)
-		fibers_.emplace_back(CreateFiber(stack_byte_count, func, p_data), false);
+	fibers_.resize(fiber_count);
+	for (auto& e : fibers_)
+		e.p_fiber = CreateFiber(stack_byte_count, func, p_data);
 
 	std::sort(fibers_.begin(), fibers_.end(), list_entry_comparer);
 }
@@ -37,7 +37,7 @@ void fiber_pool::push_back(void* p_fbr)
 	assert(p_fbr);
 	std::lock_guard<std::mutex> lock(mutex_);
 
-	const list_entry entry = list_entry{ p_fbr, false };
+	const list_entry entry = { p_fbr, false };
 	it_t it = std::lower_bound(fibers_.begin(), fibers_.end(), entry, list_entry_comparer);
 	assert(it != fibers_.end());
 	

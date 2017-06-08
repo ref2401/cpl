@@ -30,12 +30,6 @@ public:
 private:
 
 	struct list_entry final {
-		list_entry() noexcept = default;
-
-		list_entry(void* p_fiber, bool in_use)
-			: p_fiber(p_fiber), in_use(in_use)
-		{}
-
 		void* p_fiber = nullptr;
 		bool in_use = false;
 	};
