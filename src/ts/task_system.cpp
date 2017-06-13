@@ -48,4 +48,23 @@ bool fiber_wait_list::try_pop(void*& p_out_fiber)
 	return false;
 }
 
+// ----- task_system_state -----
+
+task_system_state::task_system_state(size_t queue_size, size_t queue_immediate_size)
+	: queue(queue_size), queue_immediate(queue_immediate_size), exec_flag(true)
+{}
+
+// ----- task_system -----
+
+task_system::task_system(task_system_desc desc)
+	: wait_list_(desc.fiber_count)
+{
+	assert(desc.thread_count > 0);
+	assert(desc.fiber_count > 0);
+	assert(desc.queue_size > 0);
+	assert(desc.queue_immediate_size > 0);
+
+	//worker_threads.reserve(desc.thread_count);
+}
+
 } // namespace ts

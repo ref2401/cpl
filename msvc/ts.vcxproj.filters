@@ -5,6 +5,7 @@
     <ClInclude Include="..\inlcude\ts\utility.h" />
     <ClInclude Include="..\inlcude\ts\fiber.h" />
     <ClInclude Include="..\inlcude\ts\ts.h" />
+    <ClInclude Include="..\inlcude\ts\task.h" />
     <ClInclude Include="..\inlcude\ts\task_system.h" />
   </ItemGroup>
   <ItemGroup>

@@ -59,9 +59,6 @@ namespace ts {
 void init_task_system(const task_system_desc& desc)
 {
 	//assert(!gp_ts_ctx);
-	assert(desc.high_queue_size > 0);
-	assert(desc.queue_size > 0);
-	assert(desc.thread_count > 0);
 
 	//gp_ts_ctx = std::make_unique<task_system_context>(desc.high_queue_size, desc.queue_size);
 

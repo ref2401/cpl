@@ -2,7 +2,9 @@
 #define TS_TASK_SYSTEM_H_
 
 #include <atomic>
+#include <vector>
 #include "ts/concurrent_queue.h"
+#include "task.h"
 
 
 namespace ts {
@@ -10,7 +12,7 @@ namespace ts {
 class fiber_wait_list final {
 public:
 
-	fiber_wait_list(size_t fiber_count);
+	explicit fiber_wait_list(size_t fiber_count);
 
 	fiber_wait_list(fiber_wait_list&&) = delete;
 	fiber_wait_list& operator=(fiber_wait_list&&) = delete;
@@ -35,6 +37,32 @@ private:
 	std::vector<list_entry> wait_list_;
 	std::mutex mutex_;
 	size_t push_index_ = 0;
+};
+
+struct task final {
+	std::function<void()> func;
+};
+
+struct task_system_state final {
+	task_system_state(size_t queue_size, size_t queue_size_immediate);
+
+	concurrent_queue<task> 	queue;
+	concurrent_queue<task> 	queue_immediate;
+	std::atomic_bool		exec_flag;
+};
+
+class task_system final {
+public:
+
+	explicit task_system(task_system_desc desc);
+
+private:
+
+	std::vector<std::thread>	worker_threads_;
+	fiber_wait_list				wait_list_;
+	//fiber::fiber_pool 			fiber_pool_(fiber_count, fiber_func);
+	//task_system_state			state_;
+	//task_system_report 			report_;
 };
 
 } // namespace ts
