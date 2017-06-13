@@ -18,7 +18,11 @@ public:
 
 	// Puts the given pair of a fiber and its wait counter to the underlying list.
 	// Does not check whether the specified fiber is already in the list.
-	void push(void* p_fiber, std::atomic_size_t* wait_counter);
+	void push(void* p_fiber, std::atomic_size_t* p_wait_counter);
+
+	// Iterates over the wait list searching for a fiber whose wait counter equals to zero.
+	// Returns true if such a fiber has been found, p_out_fiber will store the value.
+	bool try_pop(void*& p_out_fiber);
 
 private:
 
@@ -30,6 +34,7 @@ private:
 
 	std::vector<list_entry> wait_list_;
 	std::mutex mutex_;
+	size_t push_index_ = 0;
 };
 
 } // namespace ts

@@ -4,5 +4,6 @@
     <ClCompile Include="..\src\unittest\concurrent_queue_unittest.cpp" />
     <ClCompile Include="..\src\unittest\utility_unittest.cpp" />
     <ClCompile Include="..\src\unittest\fiber_unittest.cpp" />
+    <ClCompile Include="..\src\unittest\task_system_unittest.cpp" />
   </ItemGroup>
 </Project>
