@@ -21,15 +21,13 @@
   <ItemGroup>
     <ClCompile Include="..\src\ts\fiber.cpp" />
     <ClCompile Include="..\src\ts\task_system.cpp" />
-    <ClCompile Include="..\src\ts\ts.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\inlcude\ts\concurrent_queue.h" />
-    <ClInclude Include="..\inlcude\ts\fiber.h" />
-    <ClInclude Include="..\inlcude\ts\task.h" />
     <ClInclude Include="..\inlcude\ts\task_system.h" />
-    <ClInclude Include="..\inlcude\ts\ts.h" />
-    <ClInclude Include="..\inlcude\ts\utility.h" />
+    <ClInclude Include="..\src\ts\fiber.h" />
+    <ClInclude Include="..\src\ts\task_system_internal.h" />
+    <ClInclude Include="..\src\ts\utility.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
@@ -116,7 +114,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\inlcude\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\inlcude\;$(SolutionDir)..\src\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -141,7 +139,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\inlcude\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\inlcude\;$(SolutionDir)..\src\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>

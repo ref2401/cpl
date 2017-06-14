@@ -1,4 +1,5 @@
 #include "ts/task_system.h"
+#include "ts/task_system_internal.h"
 
 
 
@@ -65,6 +66,26 @@ task_system::task_system(task_system_desc desc)
 	assert(desc.queue_immediate_size > 0);
 
 	//worker_threads.reserve(desc.thread_count);
+}
+
+// ----- funcs -----
+
+void init_task_system(const task_system_desc& desc)
+{
+}
+
+task_system_report terminate_task_system() 
+{
+	return {};
+}
+
+void run(task_desc* p_tasks, size_t count)
+{
+}
+
+size_t thread_count() noexcept
+{
+	return 0;
 }
 
 } // namespace ts
