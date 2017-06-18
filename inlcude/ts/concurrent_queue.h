@@ -4,6 +4,7 @@
 #include <cassert>
 #include <atomic>
 #include <condition_variable>
+#include <iterator>
 #include <mutex>
 #include <queue>
 #include "ts/utility.h"
@@ -38,6 +39,9 @@ public:
 	template<typename U>
 	void push(U&& v);
 
+	template<typename InputIt>
+	void push(InputIt b, InputIt e);
+
 	// Tries to pop a value from the queue. If the queue is empty returns false and leaves out_v unchanged.
 	bool try_pop(T& out_v);
 
@@ -47,10 +51,10 @@ public:
 
 private:
 
-	ring_buffer<T> queue_;
-	mutable std::mutex mutex_;
+	ring_buffer<T>			queue_;
+	mutable std::mutex		mutex_;
 	std::condition_variable not_empty_condition_;
-	std::atomic_bool wait_allowed_;
+	std::atomic_bool		wait_allowed_;
 };
 
 
@@ -113,6 +117,24 @@ void concurrent_queue<T>::push(U&& v)
 }
 
 template<typename T>
+template<typename InputIt>
+void concurrent_queue<T>::push(InputIt b, InputIt e)
+{
+	using trait = std::iterator_traits<InputIt>;
+	static_assert(std::is_same<T, trait::value_type>::value, "InputIt::value_type must be implicitly convertible to T.");
+	
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		for (InputIt i = b; i != e; ++i) {
+			bool res = queue_.try_push(std::forward<trait::reference>(*i));
+			assert(res);
+		}
+	}
+
+	not_empty_condition_.notify_all();
+}
+
+template<typename T>
 bool concurrent_queue<T>::try_pop(T& out_v)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
@@ -124,7 +146,7 @@ bool concurrent_queue<T>::try_pop(T& out_v)
 template<typename T>
 bool concurrent_queue<T>::wait_pop(T& out_v)
 {
-	// We can wait while the queue_ is empty and waiting is allowed.
+	// We wait while the queue_ is empty and waiting is allowed.
 	std::unique_lock<std::mutex> lock(mutex_);
 	not_empty_condition_.wait(lock, [this] { return !(queue_.empty() && wait_allowed_); });
 

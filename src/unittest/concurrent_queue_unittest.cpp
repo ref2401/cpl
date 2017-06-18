@@ -32,7 +32,7 @@ public:
 		int* p2 = new int(1024);
 
 		// push
-		concurrent_queue<std::unique_ptr<int>> queue(3);
+		concurrent_queue<std::unique_ptr<int>> queue(6);
 		queue.push(std::move(p0));
 		queue.push(std::move(p1));
 		queue.emplace(p2);
@@ -41,24 +41,50 @@ public:
 		Assert::IsFalse(bool(p1));
 		Assert::AreEqual<size_t>(3, queue.size());
 
+		// push(iterator, iterator)
+		std::vector<std::unique_ptr<int>> pointers;
+		pointers.emplace_back(new int(1));
+		pointers.emplace_back(new int(2));
+		pointers.emplace_back(new int(3));
+		queue.push(std::make_move_iterator(pointers.begin()), std::make_move_iterator(pointers.end()));
+		
+		Assert::IsTrue(std::all_of(pointers.cbegin(), pointers.cend(), [](const std::unique_ptr<int>& p) { return !p; }));
+		Assert::AreEqual<size_t>(6, queue.size());
+
 		// pop
 		std::unique_ptr<int> out;
 
 		// pop 24 back
 		Assert::IsTrue(queue.try_pop(out));
 		Assert::AreEqual(24, *out);
-		Assert::AreEqual<size_t>(2, queue.size());
+		Assert::AreEqual<size_t>(5, queue.size());
 
 		// pop 100 back
 		Assert::IsTrue(queue.try_pop(out));
 		Assert::AreEqual(100, *out);
-		Assert::AreEqual<size_t>(1, queue.size());
+		Assert::AreEqual<size_t>(4, queue.size());
 
 		// pop 1024 back
 		Assert::IsTrue(queue.wait_pop(out));
 		Assert::AreEqual(1024, *out);
-		Assert::IsTrue(queue.empty());
+		Assert::AreEqual<size_t>(3, queue.size());
+
+		// pop 1 back
+		Assert::IsTrue(queue.try_pop(out));
+		Assert::AreEqual(1, *out);
+		Assert::AreEqual<size_t>(2, queue.size());
+
+		// pop 2 back
+		Assert::IsTrue(queue.try_pop(out));
+		Assert::AreEqual(2, *out);
+		Assert::AreEqual<size_t>(1, queue.size());
+
+		// pop 3 back
+		Assert::IsTrue(queue.try_pop(out));
+		Assert::AreEqual(3, *out);
 		Assert::AreEqual<size_t>(0, queue.size());
+
+		Assert::IsTrue(queue.empty());
 	}
 
 	TEST_METHOD(push_pop_several_threads)

@@ -4,6 +4,7 @@
 #include <atomic>
 #include <vector>
 #include "ts/concurrent_queue.h"
+#include "ts/fiber.h"
 #include "ts/task_system.h"
 
 
@@ -29,22 +30,18 @@ public:
 private:
 
 	struct list_entry final {
-		void* p_fiber = nullptr;
+		void*				p_fiber = nullptr;
 		std::atomic_size_t* p_wait_counter = nullptr;
 	};
 
 
-	std::vector<list_entry> wait_list_;
-	std::mutex mutex_;
-	size_t push_index_ = 0;
-};
-
-struct task final {
-	std::function<void()> func;
+	std::vector<list_entry>	wait_list_;
+	std::mutex				mutex_;
+	size_t					push_index_ = 0;
 };
 
 struct task_system_state final {
-	task_system_state(size_t queue_size, size_t queue_size_immediate);
+	task_system_state(size_t queue_size, size_t queue_immediate_size);
 
 	concurrent_queue<task> 	queue;
 	concurrent_queue<task> 	queue_immediate;
@@ -56,13 +53,31 @@ public:
 
 	explicit task_system(task_system_desc desc);
 
+	task_system(task_system&&) = delete;
+	task_system& operator=(task_system&&) = delete;
+
+	~task_system() noexcept;
+
+
+	task_system_report report() const noexcept
+	{
+		return report_;
+	}
+
+	void run(task* p_tasks, size_t count);
+
+	size_t thread_count() const noexcept
+	{
+		return worker_threads_.size();
+	}
+
 private:
 
+	task_system_state			state_;
 	std::vector<std::thread>	worker_threads_;
-	fiber_wait_list				wait_list_;
-	//fiber::fiber_pool 			fiber_pool_(fiber_count, fiber_func);
-	//task_system_state			state_;
-	//task_system_report 			report_;
+	fiber_pool 					fiber_pool_;
+	fiber_wait_list				fiber_wait_list_;
+	task_system_report 			report_;
 };
 
 } // namespace ts
