@@ -14,7 +14,7 @@ void map_example()
 	constexpr size_t tile_count = 3;
 	constexpr size_t tile_float_count = float_count / tile_count;
 
-	ts::task tasks[tile_count];
+	ts::task_desc tasks[tile_count];
 	std::vector<float> sequence(float_count);
 	
 	using it = decltype(sequence)::iterator;
@@ -23,18 +23,19 @@ void map_example()
 		const size_t offset = i * tile_float_count;
 		it b = sequence.begin() + offset;
 		it e = b + tile_float_count;
-		tasks[i] = ts::task(std::iota<it, float>, b, e, float(offset));
+		tasks[i] = ts::task_desc(std::iota<it, float>, b, e, float(offset));
 	}
 
 	const size_t offset = (tile_count - 1) * tile_float_count;
 
-	tasks[tile_count - 1] = ts::task(std::iota<it, float>,
+	tasks[tile_count - 1] = ts::task_desc(std::iota<it, float>,
 		sequence.begin() + offset + tile_float_count,
 		sequence.end(),
 		float(offset));
 
-	ts::run(tasks);
-	// wait
+	std::atomic_size_t wait_counter;
+	ts::run(tasks, &wait_counter);
+	ts::wait_for(&wait_counter);
 }
 
 } // namespace example

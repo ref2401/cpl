@@ -1,7 +1,6 @@
 #ifndef TS_TASK_SYSTEM_INTERNAL_H_
 #define TS_TASK_SYSTEM_INTERNAL_H_
 
-#include <atomic>
 #include <vector>
 #include "ts/concurrent_queue.h"
 #include "ts/fiber.h"
@@ -21,7 +20,7 @@ public:
 
 	// Puts the given pair of a fiber and its wait counter to the underlying list.
 	// Does not check whether the specified fiber is already in the list.
-	void push(void* p_fiber, std::atomic_size_t* p_wait_counter);
+	void push(void* p_fiber, const std::atomic_size_t* p_wait_counter);
 
 	// Iterates over the wait list searching for a fiber whose wait counter equals to zero.
 	// Returns true if such a fiber has been found, p_out_fiber will store the value.
@@ -30,8 +29,8 @@ public:
 private:
 
 	struct list_entry final {
-		void*				p_fiber = nullptr;
-		std::atomic_size_t* p_wait_counter = nullptr;
+		void*						p_fiber = nullptr;
+		const std::atomic_size_t*	p_wait_counter = nullptr;
 	};
 
 
@@ -40,11 +39,16 @@ private:
 	size_t					push_index_ = 0;
 };
 
+struct task final {
+	std::function<void()>	func;
+	std::atomic_size_t*		p_wait_counter = nullptr;
+};
+
 struct task_system_state final {
 	task_system_state(size_t queue_size, size_t queue_immediate_size);
 
-	concurrent_queue<task> 	queue;
-	concurrent_queue<task> 	queue_immediate;
+	concurrent_queue<task>	queue;
+	concurrent_queue<task>	queue_immediate;
 	std::atomic_bool		exec_flag;
 };
 
@@ -64,7 +68,9 @@ public:
 		return report_;
 	}
 
-	void run(task* p_tasks, size_t count);
+	void run(task_desc* p_tasks, size_t count, std::atomic_size_t* p_wait_couter);
+
+	void wait_for(const std::atomic_size_t* p_wait_counter);
 
 	size_t thread_count() const noexcept
 	{

@@ -2,6 +2,7 @@
 #define TS_TS_H_
 
 #include <cassert>
+#include <atomic>
 #include <functional>
 #include <type_traits>
 #include <utility>
@@ -9,11 +10,11 @@
 
 namespace ts {
 
-struct task final {
-	task() noexcept = default;
+struct task_desc final {
+	task_desc() noexcept = default;
 
 	template<typename F, typename... Args>
-	explicit task(F&& f, Args&&... args)
+	explicit task_desc(F&& f, Args&&... args)
 		: func(std::bind(std::forward<F>(f), std::forward<Args>(args)...))
 	{}
 
@@ -42,18 +43,20 @@ void init_task_system(const task_system_desc& desc);
 
 task_system_report terminate_task_system();
 
-void run(task* p_tasks, size_t count);
+void run(task_desc* p_tasks, size_t count, std::atomic_size_t* p_wait_counter = nullptr);
 
 template<size_t count>
-inline void run(task(&tasks)[count])
+inline void run(task_desc(&tasks)[count], std::atomic_size_t* p_wait_counter = nullptr)
 {
 	static_assert(count > 0, "The number of tasks must be >= 1.");
-	run(tasks, count);
+	run(tasks, count, p_wait_counter);
 }
 
 // How many worker threads are used by the current task system.
 // The value is equal to task_system_desc.thread_count
 size_t thread_count() noexcept;
+
+void wait_for(const std::atomic_size_t* p_wait_counter);
 
 } // namespace ts
 
