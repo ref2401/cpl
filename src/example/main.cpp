@@ -10,25 +10,22 @@
 #include <windows.h>
 
 
-class A {
-	int64_t k;
-};
-class B : public A {
-	int64_t k2;
-};
-
 void main(int argc, char* argv[])
 {
-	//ts::task_system_desc desc;
-	//desc.high_queue_size = 8;
-	//desc.queue_size = 128;
-	//desc.thread_count = 4;
-	//ts::init_task_system(desc);
+	ts::task_system_desc ts_desc = {
+		/* thread_count */				2,
+		/* fiber_count */				8,
+		/* fiber_stack_byte_count */	128,
+		/* queue_size */				64,
+		/* queue_immediate_size */		16
+	};
+	ts::init_task_system(ts_desc);
 
-	//example::map_example();
+	example::run_examples();
 
-	//auto report = ts::terminate_task_system();
-	//std::cout << "high_task_count: " << report.high_task_count << std::endl;
-	//std::cout << "task_count: " << report.task_count << std::endl;
+	auto report = ts::terminate_task_system();
+	std::cout << std::endl << "[task system report]" << std::endl
+		<< "\thigh_task_count: " << report.high_task_count << ";" << std::endl
+		<< "\ttask_count: " << report.task_count << ";" << std::endl;
 	std::cin.get();
 }

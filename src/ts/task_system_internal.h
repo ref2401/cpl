@@ -60,7 +60,7 @@ public:
 	task_system(task_system&&) = delete;
 	task_system& operator=(task_system&&) = delete;
 
-	~task_system() noexcept;
+	~task_system();
 
 
 	task_system_report report() const noexcept

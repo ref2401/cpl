@@ -24,7 +24,7 @@ struct task_desc final {
 struct task_system_desc final {
 	size_t thread_count = 0;
 	size_t fiber_count = 0;
-	size_t fiber_staeck_byte_count = 0;
+	size_t fiber_stack_byte_count = 0;
 	size_t queue_size = 0;
 	size_t queue_immediate_size = 0;
 };
@@ -44,6 +44,12 @@ void init_task_system(const task_system_desc& desc);
 task_system_report terminate_task_system();
 
 void run(task_desc* p_tasks, size_t count, std::atomic_size_t* p_wait_counter = nullptr);
+
+inline void run(void(*func)(), std::atomic_size_t* p_wait_counter = nullptr)
+{
+	task_desc t(func);
+	run(&t, 1, p_wait_counter);
+}
 
 template<size_t count>
 inline void run(task_desc(&tasks)[count], std::atomic_size_t* p_wait_counter = nullptr)

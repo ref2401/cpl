@@ -53,6 +53,8 @@ void worker_fiber_func(void* data)
 
 		switch_to_fiber(worker_fiber_context::p_thread_main_fiber);
 	}
+
+	switch_to_fiber(worker_fiber_context::p_thread_main_fiber);
 }
 
 void worker_thread_func(fiber_pool& fiber_pool, fiber_wait_list& fiber_wait_list, std::atomic_bool& exec_flag)
@@ -145,7 +147,7 @@ task_system_state::task_system_state(size_t queue_size, size_t queue_immediate_s
 
 task_system::task_system(task_system_desc desc)
 	: state_(desc.queue_size, desc.queue_immediate_size),
-	fiber_pool_(desc.fiber_count, worker_fiber_func, desc.fiber_staeck_byte_count, &state_),
+	fiber_pool_(desc.fiber_count, worker_fiber_func, desc.fiber_stack_byte_count, &state_),
 	fiber_wait_list_(desc.fiber_count)
 {
 	worker_threads_.reserve(desc.thread_count);
@@ -157,7 +159,7 @@ task_system::task_system(task_system_desc desc)
 	}
 }
 
-task_system::~task_system() noexcept
+task_system::~task_system()
 {
 	state_.exec_flag = false;
 	state_.queue.set_wait_allowed(false);
@@ -177,11 +179,15 @@ void task_system::run(task_desc* p_tasks, size_t count, std::atomic_size_t* p_wa
 
 	for (size_t i = 0; i < count; ++i)
 		state_.queue.emplace(std::move(p_tasks[i].func), p_wait_counter);
+
+	report_.task_count += count;
 }
 
 void task_system::wait_for(const std::atomic_size_t* p_wait_counter)
 {
 	assert(p_wait_counter);
+	assert(current_fiber() != worker_fiber_context::p_thread_main_fiber);
+
 	if (p_wait_counter == 0) return;
 
 	worker_fiber_context::p_wait_list_counter = p_wait_counter;
