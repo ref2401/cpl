@@ -10,6 +10,8 @@
 
 namespace ts {
 
+using topmost_func_t = void(*)(std::atomic_bool& exec_flag);
+
 struct task_desc final {
 	task_desc() noexcept = default;
 
@@ -39,30 +41,49 @@ struct task_system_report final {
 
 
 
-void init_task_system(const task_system_desc& desc);
-
-task_system_report terminate_task_system();
+task_system_report launch_task_system(const task_system_desc& desc, topmost_func_t p_topmost_func);
 
 void run(task_desc* p_tasks, size_t count, std::atomic_size_t* p_wait_counter = nullptr);
 
-inline void run(void(*func)(), std::atomic_size_t* p_wait_counter = nullptr)
+inline void run(void(*func)())
 {
 	task_desc t(func);
-	run(&t, 1, p_wait_counter);
+	run(&t, 1, nullptr);
+}
+
+inline void run(void(*func)(), std::atomic_size_t& wait_counter)
+{
+	task_desc t(func);
+	run(&t, 1, &wait_counter);
+}
+
+inline void run(task_desc& t)
+{
+	run(&t, 1, nullptr);
+}
+
+inline void run(task_desc& t, std::atomic_size_t& wait_counter)
+{
+	run(&t, 1, &wait_counter);
 }
 
 template<size_t count>
-inline void run(task_desc(&tasks)[count], std::atomic_size_t* p_wait_counter = nullptr)
+inline void run(task_desc(&tasks)[count])
 {
-	static_assert(count > 0, "The number of tasks must be >= 1.");
-	run(tasks, count, p_wait_counter);
+	run(tasks, count, nullptr);
+}
+
+template<size_t count>
+inline void run(task_desc(&tasks)[count], std::atomic_size_t& wait_counter)
+{
+	run(tasks, count, &wait_counter);
 }
 
 // How many worker threads are used by the current task system.
 // The value is equal to task_system_desc.thread_count
 size_t thread_count() noexcept;
 
-void wait_for(const std::atomic_size_t* p_wait_counter);
+void wait_for(const std::atomic_size_t& wait_counter);
 
 } // namespace ts
 

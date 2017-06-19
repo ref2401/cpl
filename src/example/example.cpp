@@ -34,18 +34,7 @@ inline void to_stream(std::ostream& o, const char* title, const std::chrono::hig
 
 namespace example {
 
-void run_examples()
-{
-	std::atomic_bool done_flag = false;
-
-	ts::task_desc task(simple_map_example, std::ref(done_flag));
-	ts::run(&task, 1);
-
-	while (!done_flag)
-		; // spin-wait
-}
-
-void simple_map_example(std::atomic_bool& done_flag)
+void simple_map_example()
 {
 	constexpr size_t float_count = 10'000'000;
 	constexpr size_t tile_count = 3;
@@ -76,12 +65,11 @@ void simple_map_example(std::atomic_bool& done_flag)
 		float(offset));
 
 	std::atomic_size_t wait_counter;
-	ts::run(tasks, &wait_counter);
-	ts::wait_for(&wait_counter);
+	ts::run(tasks, wait_counter);
+	ts::wait_for(wait_counter);
 
 	auto dur = std::chrono::high_resolution_clock::now() - time_start;
 	to_stream(std::cout, "\t----time", dur);
-	done_flag = true;
 }
 
 } // namespace example

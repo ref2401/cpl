@@ -52,38 +52,18 @@ struct task_system_state final {
 	std::atomic_bool		exec_flag;
 };
 
-class task_system final {
-public:
+struct task_system final {
 
-	explicit task_system(task_system_desc desc);
+	task_system(task_system_desc desc);
 
 	task_system(task_system&&) = delete;
 	task_system& operator=(task_system&&) = delete;
 
-	~task_system();
-
-
-	task_system_report report() const noexcept
-	{
-		return report_;
-	}
-
-	void run(task_desc* p_tasks, size_t count, std::atomic_size_t* p_wait_couter);
-
-	void wait_for(const std::atomic_size_t* p_wait_counter);
-
-	size_t thread_count() const noexcept
-	{
-		return worker_threads_.size();
-	}
-
-private:
-
-	task_system_state			state_;
-	std::vector<std::thread>	worker_threads_;
-	fiber_pool 					fiber_pool_;
-	fiber_wait_list				fiber_wait_list_;
-	task_system_report 			report_;
+	task_system_state			state;
+	std::vector<std::thread>	worker_threads;
+	fiber_pool 					fiber_pool;
+	fiber_wait_list				fiber_wait_list;
+	task_system_report 			report;
 };
 
 } // namespace ts

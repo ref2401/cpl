@@ -146,31 +146,61 @@ task_system_state::task_system_state(size_t queue_size, size_t queue_immediate_s
 // ----- task_system -----
 
 task_system::task_system(task_system_desc desc)
-	: state_(desc.queue_size, desc.queue_immediate_size),
-	fiber_pool_(desc.fiber_count, worker_fiber_func, desc.fiber_stack_byte_count, &state_),
-	fiber_wait_list_(desc.fiber_count)
+	: state(desc.queue_size, desc.queue_immediate_size),
+	fiber_pool(desc.fiber_count, worker_fiber_func, desc.fiber_stack_byte_count, &state),
+	fiber_wait_list(desc.fiber_count)
 {
-	worker_threads_.reserve(desc.thread_count);
-	for (size_t i = 0; i < desc.thread_count; ++i) {
-		worker_threads_.emplace_back(worker_thread_func,
-			std::ref(fiber_pool_),
-			std::ref(fiber_wait_list_),
-			std::ref(state_.exec_flag));
+	// spawn new worker threads if needed
+	const size_t tc = desc.thread_count - 1;
+	worker_threads.reserve(tc);
+
+	for (size_t i = 0; i < tc; ++i) {
+		worker_threads.emplace_back(worker_thread_func,
+			std::ref(fiber_pool),
+			std::ref(fiber_wait_list),
+			std::ref(state.exec_flag));
 	}
 }
 
-task_system::~task_system()
-{
-	state_.exec_flag = false;
-	state_.queue.set_wait_allowed(false);
-	state_.queue_immediate.set_wait_allowed(false);
+// ----- funcs -----
 
-	for (auto& th : worker_threads_)
-		th.join();
+task_system_report launch_task_system(const task_system_desc& desc, topmost_func_t p_topmost_func)
+{
+	assert(!gp_task_system);
+	assert(is_valid_task_system_desc(desc));
+	assert(p_topmost_func);
+
+	gp_task_system = std::make_unique<task_system>(desc);
+	
+	try {
+
+		{
+			task_desc t(p_topmost_func, std::ref(gp_task_system->state.exec_flag));
+			run(&t, 1, nullptr);
+		}
+
+		worker_thread_func(gp_task_system->fiber_pool, 
+			gp_task_system->fiber_wait_list, gp_task_system->state.exec_flag);
+		
+		gp_task_system->state.exec_flag = false;
+		gp_task_system->state.queue.set_wait_allowed(false);
+		gp_task_system->state.queue_immediate.set_wait_allowed(false);
+
+		for (auto& th : gp_task_system->worker_threads)
+			th.join();
+		
+		auto report = gp_task_system->report;
+		gp_task_system = nullptr;
+		return report;
+	}
+	catch (...) {
+		std::throw_with_nested(std::runtime_error("Task system execution error."));
+	}
 }
 
-void task_system::run(task_desc* p_tasks, size_t count, std::atomic_size_t* p_wait_counter)
+void run(task_desc* p_tasks, size_t count, std::atomic_size_t* p_wait_counter)
 {
+	assert(gp_task_system);
 	assert(p_tasks);
 	assert(count > 0);
 
@@ -178,62 +208,26 @@ void task_system::run(task_desc* p_tasks, size_t count, std::atomic_size_t* p_wa
 		*p_wait_counter = count;
 
 	for (size_t i = 0; i < count; ++i)
-		state_.queue.emplace(std::move(p_tasks[i].func), p_wait_counter);
+		gp_task_system->state.queue.emplace(std::move(p_tasks[i].func), p_wait_counter);
 
-	report_.task_count += count;
-}
-
-void task_system::wait_for(const std::atomic_size_t* p_wait_counter)
-{
-	assert(p_wait_counter);
-	assert(current_fiber() != worker_fiber_context::p_thread_main_fiber);
-
-	if (p_wait_counter == 0) return;
-
-	worker_fiber_context::p_wait_list_counter = p_wait_counter;
-	switch_to_fiber(worker_fiber_context::p_thread_main_fiber);
-}
-
-// ----- funcs -----
-
-void init_task_system(const task_system_desc& desc)
-{
-	assert(!gp_task_system);
-	assert(is_valid_task_system_desc(desc));
-
-	gp_task_system = std::make_unique<task_system>(desc);
-}
-
-task_system_report terminate_task_system() 
-{
-	assert(gp_task_system);
-
-	auto report = gp_task_system->report();
-	gp_task_system = nullptr;
-
-	return report;
-}
-
-void run(task_desc* p_tasks, size_t count, std::atomic_size_t* p_wait_counter)
-{
-	assert(gp_task_system);
-	gp_task_system->run(p_tasks, count, p_wait_counter);
+	gp_task_system->report.task_count += count;
 }
 
 size_t thread_count() noexcept
 {
 	assert(gp_task_system);
-	return gp_task_system->thread_count();
+	return gp_task_system->worker_threads.size() + 1;
 }
 
-void wait_for(const std::atomic_size_t* p_wait_counter)
+void wait_for(const std::atomic_size_t& wait_counter)
 {
 	assert(gp_task_system);
-	assert(p_wait_counter);
-	
-	if (*p_wait_counter == 0) return;
+	assert(current_fiber() != worker_fiber_context::p_thread_main_fiber);
 
-	gp_task_system->wait_for(p_wait_counter);
+	if (wait_counter == 0) return;
+
+	worker_fiber_context::p_wait_list_counter = &wait_counter;
+	switch_to_fiber(worker_fiber_context::p_thread_main_fiber);
 }
 
 } // namespace ts

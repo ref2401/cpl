@@ -10,6 +10,17 @@
 #include <windows.h>
 
 
+void run_examples(std::atomic_bool& exec_flag)
+{
+	using namespace example;
+
+	std::atomic_size_t wait_counter;
+	ts::run(simple_map_example, wait_counter);
+	ts::wait_for(wait_counter);
+
+	exec_flag = false;
+}
+
 void main(int argc, char* argv[])
 {
 	ts::task_system_desc ts_desc = {
@@ -19,11 +30,9 @@ void main(int argc, char* argv[])
 		/* queue_size */				64,
 		/* queue_immediate_size */		16
 	};
-	ts::init_task_system(ts_desc);
+	
+	auto report = ts::launch_task_system(ts_desc, run_examples);
 
-	example::run_examples();
-
-	auto report = ts::terminate_task_system();
 	std::cout << std::endl << "[task system report]" << std::endl
 		<< "\thigh_task_count: " << report.high_task_count << ";" << std::endl
 		<< "\ttask_count: " << report.task_count << ";" << std::endl;

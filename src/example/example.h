@@ -6,9 +6,7 @@
 
 namespace example {
 
-void run_examples();
-
-void simple_map_example(std::atomic_bool& done_flag);
+void simple_map_example();
 
 } // namespace example
 
