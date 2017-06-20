@@ -55,17 +55,10 @@ fiber_pool::fiber_pool(size_t fiber_count, void(*func)(void*), size_t stack_byte
 
 	fibers_.resize(fiber_count);
 	for (auto& e : fibers_)
-		e.p_fiber = CreateFiber(stack_byte_count, func, p_data);
+		e.fiber = fiber(func, stack_byte_count, p_data);
 
-	std::sort(fibers_.begin(), fibers_.end(), fiber_pool::list_entry_comparer);
-}
-
-fiber_pool::~fiber_pool() noexcept
-{
-	for (auto& e : fibers_) {
-		DeleteFiber(e.p_fiber);
-		e.p_fiber = nullptr;
-	}
+	std::sort(fibers_.begin(), fibers_.end(), 
+		[](const list_entry& l, const list_entry& r) { return l.fiber.p_handle < r.fiber.p_handle; });
 }
 
 void fiber_pool::push_back(void* p_fbr)
@@ -75,8 +68,8 @@ void fiber_pool::push_back(void* p_fbr)
 	assert(p_fbr);
 	std::lock_guard<std::mutex> lock(mutex_);
 
-	const list_entry entry = { p_fbr, false };
-	it_t it = std::lower_bound(fibers_.begin(), fibers_.end(), entry, fiber_pool::list_entry_comparer);
+	it_t it = std::lower_bound(fibers_.begin(), fibers_.end(), p_fbr,
+		[](const list_entry& e, const void* p_fbr)  { return (e.fiber.p_handle < p_fbr); });
 	assert(it != fibers_.end());
 	
 	it->in_use = false;
@@ -94,7 +87,7 @@ void* fiber_pool::pop()
 	}
 	else {
 		it->in_use = true;
-		return it->p_fiber;
+		return it->fiber.p_handle;
 	}
 }
 

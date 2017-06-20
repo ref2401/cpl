@@ -36,8 +36,6 @@ public:
 	fiber_pool(fiber_pool&&) = delete;
 	fiber_pool& operator=(fiber_pool&&) = delete;
 
-	~fiber_pool() noexcept;
-
 
 	// Puts back the specified fiber object for later reuse.
 	// asserts if the specified pointer is not a fiber from the pool.
@@ -50,14 +48,9 @@ public:
 private:
 
 	struct list_entry final {
-		void* p_fiber = nullptr;
+		fiber fiber;
 		bool in_use = false;
 	};
-
-	static bool list_entry_comparer(const list_entry& l, const list_entry& r)
-	{
-		return l.p_fiber < r.p_fiber;
-	}
 
 
 	std::vector<list_entry> fibers_;
