@@ -57,18 +57,18 @@ private:
 	std::mutex mutex_;
 };
 
-// thread_main_fiber object makes it possible to execute fibers inside the current thread.
+// thread_fiber_nature object makes it possible to execute fibers inside the current thread.
 // It is illegal to create several objects in the same thread.
-struct thread_main_fiber final {
-	thread_main_fiber();
+struct thread_fiber_nature final {
+	thread_fiber_nature();
 
-	thread_main_fiber(thread_main_fiber&&) = delete;
-	thread_main_fiber& operator=(thread_main_fiber&&) = delete;
+	thread_fiber_nature(thread_fiber_nature&&) = delete;
+	thread_fiber_nature& operator=(thread_fiber_nature&&) = delete;
 
-	~thread_main_fiber();
+	~thread_fiber_nature();
 
 
-	void* p_fiber;
+	void* p_handle;
 };
 
 

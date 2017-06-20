@@ -91,16 +91,16 @@ void* fiber_pool::pop()
 	}
 }
 
-// ----- thread_main_fiber -----
+// ----- thread_fiber_nature -----
 
-thread_main_fiber::thread_main_fiber()
-	: p_fiber(ConvertThreadToFiber(GetCurrentThread()))
+thread_fiber_nature::thread_fiber_nature()
+	: p_handle(ConvertThreadToFiber(GetCurrentThread()))
 {
-	assert(p_fiber);
+	assert(p_handle);
 	assert(GetLastError() != ERROR_ALREADY_FIBER);
 }
 
-thread_main_fiber::~thread_main_fiber()
+thread_fiber_nature::~thread_fiber_nature()
 {
 	ConvertFiberToThread();
 }

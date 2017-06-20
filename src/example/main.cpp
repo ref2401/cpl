@@ -24,7 +24,7 @@ void run_examples(std::atomic_bool& exec_flag)
 void main(int argc, char* argv[])
 {
 	ts::task_system_desc ts_desc = {
-		/* thread_count */				2,
+		/* thread_count */				1,
 		/* fiber_count */				8,
 		/* fiber_stack_byte_count */	128,
 		/* queue_size */				64,
