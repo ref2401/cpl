@@ -1,8 +1,8 @@
 #include "ts/fiber.h"
 
-
 #include "CppUnitTest.h"
 
+using ts::fiber;
 using ts::fiber_pool;
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
@@ -15,6 +15,38 @@ void fiber_func(void*) { /* noop */ }
 
 
 namespace unittest {
+
+TEST_CLASS(fiber_fiber) {
+public:
+
+	TEST_METHOD(ctors)
+	{
+		fiber f0;
+		Assert::IsNull(f0.p_handle);
+
+		fiber f1(fiber_func, 128);
+		Assert::IsNotNull(f1.p_handle);
+
+		// move ctor
+		const void* p_expected_handle = f1.p_handle;
+		fiber f_m = std::move(f1);
+		Assert::IsNull(f1.p_handle);
+		Assert::AreEqual<const void*>(p_expected_handle, f_m.p_handle);
+	}
+
+	TEST_METHOD(dispose)
+	{
+		fiber f;
+		Assert::IsNull(f.p_handle);
+		f.dispose();
+		Assert::IsNull(f.p_handle);
+
+		f = fiber(fiber_func, 128);
+		Assert::IsNotNull(f.p_handle);
+		f.dispose();
+		Assert::IsNull(f.p_handle);
+	}
+};
 
 TEST_CLASS(fiber_fiber_pool) {
 public:

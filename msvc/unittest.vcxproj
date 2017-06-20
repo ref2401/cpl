@@ -19,15 +19,15 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\unittest\concurrent_queue_unittest.cpp" />
-    <ClCompile Include="..\src\unittest\fiber_unittest.cpp" />
-    <ClCompile Include="..\src\unittest\task_system_unittest.cpp" />
-    <ClCompile Include="..\src\unittest\utility_unittest.cpp" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="ts.vcxproj">
       <Project>{8536e6b6-7c5b-4820-b10e-9757e06d20fb}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\ts\concurrent_queue_unittest.cpp" />
+    <ClCompile Include="..\src\ts\fiber_unittest.cpp" />
+    <ClCompile Include="..\src\ts\task_system_unittest.cpp" />
+    <ClCompile Include="..\src\ts\utility_unittest.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>

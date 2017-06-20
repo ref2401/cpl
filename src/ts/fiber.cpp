@@ -7,6 +7,44 @@
 
 namespace ts {
 
+// ----- fiber -----
+
+fiber::fiber(fiber_func_t func, size_t stack_byte_count, void* p_data)
+{
+	assert(func);
+	assert(stack_byte_count > 0);
+	p_handle = CreateFiber(stack_byte_count, func, p_data);
+}
+
+fiber::fiber(fiber&& fbr) noexcept
+	: p_handle(fbr.p_handle)
+{
+	fbr.p_handle = nullptr;
+}
+
+fiber& fiber::operator=(fiber&& fbr) noexcept
+{
+	if (this == &fbr) return *this;
+
+	dispose();
+	p_handle = fbr.p_handle;
+	fbr.p_handle = nullptr;
+
+	return *this;
+}
+
+fiber::~fiber() noexcept
+{
+	dispose();
+}
+
+void fiber::dispose() noexcept
+{
+	if (!p_handle) return;
+	DeleteFiber(p_handle);
+	p_handle = nullptr;
+}
+
 // ----- fiber_pool -----
 
 fiber_pool::fiber_pool(size_t fiber_count, void(*func)(void*), size_t stack_byte_count, void* p_data)
@@ -19,7 +57,7 @@ fiber_pool::fiber_pool(size_t fiber_count, void(*func)(void*), size_t stack_byte
 	for (auto& e : fibers_)
 		e.p_fiber = CreateFiber(stack_byte_count, func, p_data);
 
-	std::sort(fibers_.begin(), fibers_.end(), list_entry_comparer);
+	std::sort(fibers_.begin(), fibers_.end(), fiber_pool::list_entry_comparer);
 }
 
 fiber_pool::~fiber_pool() noexcept
@@ -38,7 +76,7 @@ void fiber_pool::push_back(void* p_fbr)
 	std::lock_guard<std::mutex> lock(mutex_);
 
 	const list_entry entry = { p_fbr, false };
-	it_t it = std::lower_bound(fibers_.begin(), fibers_.end(), entry, list_entry_comparer);
+	it_t it = std::lower_bound(fibers_.begin(), fibers_.end(), entry, fiber_pool::list_entry_comparer);
 	assert(it != fibers_.end());
 	
 	it->in_use = false;
@@ -75,6 +113,18 @@ thread_main_fiber::~thread_main_fiber()
 }
 
 // ----- funcs -----
+
+std::ostream& operator<<(std::ostream& o, const fiber& f)
+{
+	o << "fiber(" << f.p_handle << ')';
+	return o;
+}
+
+std::wostream& operator<<(std::wostream& o, const fiber& f)
+{
+	o << "fiber(" << f.p_handle << ')';
+	return o;
+}
 
 void* current_fiber()
 {

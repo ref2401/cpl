@@ -1,11 +1,31 @@
 #ifndef TS_FIBER_H_
 #define TS_FIBER_H_
 
+#include <iostream>
 #include <mutex>
 #include <vector>
 
 
 namespace ts {
+
+using fiber_func_t = void(*)(void*);
+
+struct fiber final {
+	fiber() noexcept = default;
+
+	fiber(fiber_func_t func, size_t stack_byte_count, void* p_data = nullptr);
+
+	fiber(fiber&& fbr) noexcept;
+	fiber& operator=(fiber&& fbr) noexcept;
+
+	~fiber() noexcept;
+
+
+	void dispose() noexcept;
+
+
+	void* p_handle = nullptr;
+};
 
 // The only source of fiber objects.
 class fiber_pool final {
