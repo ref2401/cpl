@@ -58,7 +58,8 @@ private:
 };
 
 // thread_fiber_nature object makes it possible to execute fibers inside the current thread.
-// It is illegal to create several objects in the same thread.
+// Usually you want to create an instance at the beginign of the thread's function and forget about it.
+// It is illegal to create several objects in the same thread!
 struct thread_fiber_nature final {
 	thread_fiber_nature();
 

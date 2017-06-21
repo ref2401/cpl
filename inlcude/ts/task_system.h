@@ -10,7 +10,7 @@
 
 namespace ts {
 
-using kernel_func_t = void(*)(std::atomic_bool& exec_flag);
+using kernel_func_t = void(*)();
 
 struct task_desc final {
 	task_desc() noexcept = default;

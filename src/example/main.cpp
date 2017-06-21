@@ -10,13 +10,11 @@
 #include <windows.h>
 
 
-void run_examples(std::atomic_bool& exec_flag)
+void run_examples()
 {
 	std::atomic_size_t wait_counter;
 	ts::run(example::simple_map_example, wait_counter);
 	ts::wait_for(wait_counter);
-
-	exec_flag = false;
 }
 
 void main(int argc, char* argv[])

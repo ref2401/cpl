@@ -7,15 +7,22 @@
 namespace {
 
 using namespace ts;
-ts::task_system_state* gp_task_system;
+ts::task_system* gp_task_system;
+
+void kernel_fiber_func(void* data)
+{
+	kernel_func_t p_kernel_func = static_cast<kernel_func_t>(data);
+	p_kernel_func();
+	switch_to_fiber(worker_fiber_context::p_controller_fiber);
+}
 
 void main_thread_func(kernel_func_t p_kernel_func, fiber_pool& fiber_pool,
 	fiber_wait_list& fiber_wait_list, std::atomic_bool& exec_flag)
 {
 	thread_fiber_nature			tfn;
-	kernel_func_object			kernel_func_object(p_kernel_func, exec_flag);
-	const std::atomic_size_t*	p_main_wait_counter = nullptr;
-	void* 						p_fiber_to_exec = kernel_func_object.fiber_handle();
+	fiber						kernel_fiber(kernel_fiber_func, 1024, p_kernel_func);
+	const std::atomic_size_t*	p_kernel_wait_counter = nullptr;
+	void* 						p_fiber_to_exec = kernel_fiber.p_handle;
 
 
 	// init fiber execution context
@@ -27,37 +34,41 @@ void main_thread_func(kernel_func_t p_kernel_func, fiber_pool& fiber_pool,
 		switch_to_fiber(p_fiber_to_exec);
 
 		if (worker_fiber_context::p_wait_list_counter) {
-			// fiber's code has called ts::wait_for.
-			// the current fiber must be put into the wait list.
-
-			if (p_main_wait_counter) {
+			// Fiber's code has called ts::wait_for.
+			// The current fiber must be put into the wait list.
+			if (p_kernel_wait_counter) {
 				fiber_wait_list.push(p_fiber_to_exec, worker_fiber_context::p_wait_list_counter);
 			}
 			else {
-				p_main_wait_counter = worker_fiber_context::p_wait_list_counter;
-				assert(p_fiber_to_exec == kernel_func_object.fiber_handle());
+				p_kernel_wait_counter = worker_fiber_context::p_wait_list_counter;
+				assert(p_fiber_to_exec == kernel_fiber.p_handle);
 			}
 
 			p_fiber_to_exec = fiber_pool.pop();
 			worker_fiber_context::p_wait_list_counter = nullptr;
 		}
 		else {
-			// fiber's code has finished its current tasks. No wait request occured.
-			// check if any of the waiting fibers are ready.
-
+			// Fiber's code has finished its current tasks. No wait request occured.
+			// Check if the kernel fiber is completed. If so, then stop the task system.
+			if (p_kernel_wait_counter == nullptr) {
+				exec_flag = false;
+				return;
+			}
+			
+			// Check if any of the waiting fibers are ready.
 			void* p_fbr = nullptr;
 
-			// if the main fiber is ready we are going to exec it
-			// otherwise we try to get any waiting fiber from the wait list.
-			if (p_main_wait_counter && *p_main_wait_counter == 0) {
-				p_fbr = kernel_func_object.fiber_handle();
-				p_main_wait_counter = nullptr;
-			}
-			else {
+			// If the kernel fiber is NOT ready we are going to exec any fiber from the wait list.
+			if (*p_kernel_wait_counter > 0) {
 				const bool r = fiber_wait_list.try_pop(p_fbr);
 			}
+			else {
+				// The kernel fiber is ready.
+				p_fbr = kernel_fiber.p_handle;
+				p_kernel_wait_counter = nullptr;
+			}
 
-			// if a waiting fiber has been found we return the current fiber back to the pool.
+			// If a waiting fiber has been found we return the current fiber back to the pool.
 			if (p_fbr) {
 				fiber_pool.push_back(p_fiber_to_exec);
 				p_fiber_to_exec = p_fbr;
@@ -68,7 +79,7 @@ void main_thread_func(kernel_func_t p_kernel_func, fiber_pool& fiber_pool,
 
 void worker_fiber_func(void* data)
 {
-	task_system_state& state = *static_cast<task_system_state*>(data);
+	task_system& state = *static_cast<task_system*>(data);
 
 	while (state.exec_flag) {
 		// drain queue_immediate
@@ -99,13 +110,17 @@ void worker_thread_func(fiber_pool& fiber_pool, fiber_wait_list& fiber_wait_list
 		switch_to_fiber(p_fiber_to_exec);
 
 		if (worker_fiber_context::p_wait_list_counter) {
+			// Fiber's code has called ts::wait_for.
+			// The current fiber must be put into the wait list.
 			fiber_wait_list.push(p_fiber_to_exec, worker_fiber_context::p_wait_list_counter);
 			worker_fiber_context::p_wait_list_counter = nullptr;
 
 			p_fiber_to_exec = fiber_pool.pop();
+			assert(p_fiber_to_exec);
 		}
 		else {
-			// waiting fiber
+			// Fiber's code has finished its current tasks. No wait request occured.
+			// Check if any of the waiting fibers are ready.
 			void* p_fpr;
 			const bool r = fiber_wait_list.try_pop(p_fpr);
 			if (r) {
@@ -165,29 +180,9 @@ bool fiber_wait_list::try_pop(void*& p_out_fiber)
 	return false;
 }
 
-// ----- kernel_func_object -----
-
-kernel_func_object::kernel_func_object(kernel_func_t p_kernel_func, std::atomic_bool& exec_flag)
-	: fiber_(kernel_func_object::fiber_func, 1024, this),
-	p_kernel_func_(p_kernel_func), 
-	exec_flag_(exec_flag)
-{ }
-
-void kernel_func_object::fiber_func(void* data)
-{
-	kernel_func_object& fbr = *static_cast<kernel_func_object*>(data);
-	fbr.exec_kernle_func();
-	switch_to_fiber(worker_fiber_context::p_controller_fiber);
-}
-
-void kernel_func_object::exec_kernle_func()
-{
-	p_kernel_func_(exec_flag_);
-}
-
 // ----- task_system -----
 
-task_system_state::task_system_state(size_t queue_size, size_t queue_immediate_size,
+task_system::task_system(size_t queue_size, size_t queue_immediate_size,
 	size_t worker_thread_count)
 	: queue(queue_size), 
 	queue_immediate(queue_immediate_size), 
@@ -211,7 +206,7 @@ task_system_report launch_task_system(const task_system_desc& desc, kernel_func_
 	try {
 
 		// init the task system
-		task_system_state	state(desc.queue_size, desc.queue_immediate_size, desc.thread_count);
+		task_system	state(desc.queue_size, desc.queue_immediate_size, desc.thread_count);
 		fiber_pool			fiber_pool(desc.fiber_count, worker_fiber_func, desc.fiber_stack_byte_count, &state);
 		fiber_wait_list		fiber_wait_list(desc.fiber_count);
 		gp_task_system = &state;

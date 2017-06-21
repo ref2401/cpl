@@ -39,43 +39,13 @@ private:
 	size_t					push_index_ = 0;
 };
 
-// kernel_func_object is created only inside the main thread.
-// It provides fiber environment for the task system's kernel function.
-// In onther words kernel_func_object makes possible to call ts::wait_for inside the kernel function.
-// After the kernel function returns kernel_func_object switches back to the thread controller fiber.
-class kernel_func_object final {
-public:
-
-	kernel_func_object(kernel_func_t p_kernel_func, std::atomic_bool& exec_flag);
-
-	kernel_func_object(kernel_func_object&&) = delete;
-	kernel_func_object& operator=(kernel_func_object&&) = delete;
-
-
-	void* fiber_handle() noexcept
-	{
-		return fiber_.p_handle;
-	}
-
-private:
-
-	static void fiber_func(void* data);
-
-
-	void exec_kernle_func();
-
-	fiber fiber_;
-	kernel_func_t p_kernel_func_;
-	std::atomic_bool& exec_flag_;
-};
-
 struct task final {
 	std::function<void()>	func;
 	std::atomic_size_t*		p_wait_counter = nullptr;
 };
 
-struct task_system_state final {
-	task_system_state(size_t queue_size, size_t queue_immediate_size, size_t worker_thread_count);
+struct task_system final {
+	task_system(size_t queue_size, size_t queue_immediate_size, size_t worker_thread_count);
 
 	concurrent_queue<task>	queue;
 	concurrent_queue<task>	queue_immediate;
