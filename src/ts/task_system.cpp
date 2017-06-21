@@ -7,57 +7,15 @@
 namespace {
 
 using namespace ts;
-std::unique_ptr<ts::task_system> gp_task_system;
+ts::task_system_state* gp_task_system;
 
-struct main_fiber_params final {
-	std::atomic_bool& exec_flag;
-	topmost_func_t p_topmost_func;
-};
-
-// Represents thread local communication channel between the thread main fiber
-// and a worker fiber which is executed in the current thread.
-struct worker_fiber_context final {
-	static thread_local void* 						p_controller_fiber;
-	static thread_local const std::atomic_size_t*	p_wait_list_counter;
-};
-
-thread_local void*						worker_fiber_context::p_controller_fiber;
-thread_local const std::atomic_size_t*	worker_fiber_context::p_wait_list_counter;
-
-inline void exec_task(task& t)
-{
-	t.func();
-
-	if (t.p_wait_counter) {
-		assert(*t.p_wait_counter > 0);
-		--(*t.p_wait_counter);
-	}
-}
-
-inline bool is_valid_task_system_desc(const task_system_desc& desc) noexcept
-{
-	return (desc.thread_count > 0)
-		&& (desc.fiber_count > 0)
-		&& (desc.queue_size > 0)
-		&& (desc.queue_immediate_size > 0);
-}
-
-void main_fiber_func(void* data)
-{
-	main_fiber_params& params = *static_cast<main_fiber_params*>(data);
-
-	params.p_topmost_func(params.exec_flag);
-	switch_to_fiber(worker_fiber_context::p_controller_fiber);
-}
-
-void main_thread_func(topmost_func_t p_main_func, fiber_pool& fiber_pool,
+void main_thread_func(kernel_func_t p_kernel_func, fiber_pool& fiber_pool,
 	fiber_wait_list& fiber_wait_list, std::atomic_bool& exec_flag)
 {
 	thread_fiber_nature			tfn;
-	main_fiber_params			main_fiber_params{ exec_flag, p_main_func };
-	fiber 						main_fiber(main_fiber_func, 1024, &main_fiber_params);
+	kernel_func_object			kernel_func_object(p_kernel_func, exec_flag);
 	const std::atomic_size_t*	p_main_wait_counter = nullptr;
-	void* 						p_fiber_to_exec = main_fiber.p_handle;
+	void* 						p_fiber_to_exec = kernel_func_object.fiber_handle();
 
 
 	// init fiber execution context
@@ -77,7 +35,7 @@ void main_thread_func(topmost_func_t p_main_func, fiber_pool& fiber_pool,
 			}
 			else {
 				p_main_wait_counter = worker_fiber_context::p_wait_list_counter;
-				assert(p_fiber_to_exec == main_fiber.p_handle);
+				assert(p_fiber_to_exec == kernel_func_object.fiber_handle());
 			}
 
 			p_fiber_to_exec = fiber_pool.pop();
@@ -92,7 +50,7 @@ void main_thread_func(topmost_func_t p_main_func, fiber_pool& fiber_pool,
 			// if the main fiber is ready we are going to exec it
 			// otherwise we try to get any waiting fiber from the wait list.
 			if (p_main_wait_counter && *p_main_wait_counter == 0) {
-				p_fbr = main_fiber.p_handle;
+				p_fbr = kernel_func_object.fiber_handle();
 				p_main_wait_counter = nullptr;
 			}
 			else {
@@ -207,52 +165,76 @@ bool fiber_wait_list::try_pop(void*& p_out_fiber)
 	return false;
 }
 
-// ----- task_system_state -----
+// ----- kernel_func_object -----
 
-task_system_state::task_system_state(size_t queue_size, size_t queue_immediate_size)
-	: queue(queue_size), queue_immediate(queue_immediate_size), exec_flag(true)
-{}
+kernel_func_object::kernel_func_object(kernel_func_t p_kernel_func, std::atomic_bool& exec_flag)
+	: fiber_(kernel_func_object::fiber_func, 1024, this),
+	p_kernel_func_(p_kernel_func), 
+	exec_flag_(exec_flag)
+{ }
+
+void kernel_func_object::fiber_func(void* data)
+{
+	kernel_func_object& fbr = *static_cast<kernel_func_object*>(data);
+	fbr.exec_kernle_func();
+	switch_to_fiber(worker_fiber_context::p_controller_fiber);
+}
+
+void kernel_func_object::exec_kernle_func()
+{
+	p_kernel_func_(exec_flag_);
+}
 
 // ----- task_system -----
 
-task_system::task_system(task_system_desc desc)
-	: state(desc.queue_size, desc.queue_immediate_size),
-	fiber_pool(desc.fiber_count, worker_fiber_func, desc.fiber_stack_byte_count, &state),
-	fiber_wait_list(desc.fiber_count)
-{
-	// spawn new worker threads if needed
-	const size_t tc = desc.thread_count - 1;
-	worker_threads.reserve(tc);
+task_system_state::task_system_state(size_t queue_size, size_t queue_immediate_size,
+	size_t worker_thread_count)
+	: queue(queue_size), 
+	queue_immediate(queue_immediate_size), 
+	exec_flag(true),
+	worker_thread_count(worker_thread_count)
+{}
 
-	for (size_t i = 0; i < tc; ++i) {
-		worker_threads.emplace_back(worker_thread_func,
-			std::ref(fiber_pool),
-			std::ref(fiber_wait_list),
-			std::ref(state.exec_flag));
-	}
-}
+// ----- worker_fiber_context -----
 
+thread_local void*						worker_fiber_context::p_controller_fiber;
+thread_local const std::atomic_size_t*	worker_fiber_context::p_wait_list_counter;
 
 // ----- funcs -----
 
-task_system_report launch_task_system(const task_system_desc& desc, topmost_func_t p_topmost_func)
+task_system_report launch_task_system(const task_system_desc& desc, kernel_func_t p_kernel_func)
 {
 	assert(!gp_task_system);
 	assert(is_valid_task_system_desc(desc));
-	assert(p_topmost_func);
+	assert(p_kernel_func);
 
-	gp_task_system = std::make_unique<task_system>(desc);
-	
 	try {
 
-		main_thread_func(p_topmost_func, gp_task_system->fiber_pool,
-			gp_task_system->fiber_wait_list, gp_task_system->state.exec_flag);
+		// init the task system
+		task_system_state	state(desc.queue_size, desc.queue_immediate_size, desc.thread_count);
+		fiber_pool			fiber_pool(desc.fiber_count, worker_fiber_func, desc.fiber_stack_byte_count, &state);
+		fiber_wait_list		fiber_wait_list(desc.fiber_count);
+		gp_task_system = &state;
 		
-		gp_task_system->state.exec_flag = false;
-		gp_task_system->state.queue.set_wait_allowed(false);
-		gp_task_system->state.queue_immediate.set_wait_allowed(false);
+		// spawn new worker threads if needed
+		// desc.thread_count - 1 because 1 stands for the main thread
+		std::vector<std::thread> worker_threads;
+		worker_threads.reserve(desc.thread_count - 1);
+		for (size_t i = 0; i < desc.thread_count - 1; ++i) {
+			worker_threads.emplace_back(worker_thread_func,
+				std::ref(fiber_pool),
+				std::ref(fiber_wait_list),
+				std::ref(state.exec_flag));
+		}
 
-		for (auto& th : gp_task_system->worker_threads)
+		// run the main thread's func. the kernel func is executed here.
+		main_thread_func(p_kernel_func, fiber_pool, fiber_wait_list, gp_task_system->exec_flag);
+		assert(!state.exec_flag);
+
+		// finilize the task system
+		state.queue.set_wait_allowed(false);
+		state.queue_immediate.set_wait_allowed(false);
+		for (auto& th : worker_threads)
 			th.join();
 		
 		auto report = gp_task_system->report;
@@ -260,6 +242,7 @@ task_system_report launch_task_system(const task_system_desc& desc, topmost_func
 		return report;
 	}
 	catch (...) {
+		gp_task_system = nullptr;
 		std::throw_with_nested(std::runtime_error("Task system execution error."));
 	}
 }
@@ -274,7 +257,7 @@ void run(task_desc* p_tasks, size_t count, std::atomic_size_t* p_wait_counter)
 		*p_wait_counter = count;
 
 	for (size_t i = 0; i < count; ++i)
-		gp_task_system->state.queue.emplace(std::move(p_tasks[i].func), p_wait_counter);
+		gp_task_system->queue.emplace(std::move(p_tasks[i].func), p_wait_counter);
 
 	gp_task_system->report.task_count += count;
 }
@@ -282,7 +265,7 @@ void run(task_desc* p_tasks, size_t count, std::atomic_size_t* p_wait_counter)
 size_t thread_count() noexcept
 {
 	assert(gp_task_system);
-	return gp_task_system->worker_threads.size() + 1;
+	return gp_task_system->worker_thread_count;
 }
 
 void wait_for(const std::atomic_size_t& wait_counter)

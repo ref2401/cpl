@@ -10,7 +10,7 @@
 
 namespace ts {
 
-using topmost_func_t = void(*)(std::atomic_bool& exec_flag);
+using kernel_func_t = void(*)(std::atomic_bool& exec_flag);
 
 struct task_desc final {
 	task_desc() noexcept = default;
@@ -40,8 +40,15 @@ struct task_system_report final {
 };
 
 
+inline bool is_valid_task_system_desc(const task_system_desc& desc) noexcept
+{
+	return (desc.thread_count > 0)
+		&& (desc.fiber_count > 0)
+		&& (desc.queue_size > 0)
+		&& (desc.queue_immediate_size > 0);
+}
 
-task_system_report launch_task_system(const task_system_desc& desc, topmost_func_t p_topmost_func);
+task_system_report launch_task_system(const task_system_desc& desc, kernel_func_t p_topmost_func);
 
 void run(task_desc* p_tasks, size_t count, std::atomic_size_t* p_wait_counter = nullptr);
 
