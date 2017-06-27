@@ -33,7 +33,7 @@ struct task_system_desc final {
 
 struct task_system_report final {
 	// The number of processed tasks with high priority.
-	size_t high_task_count = 0;
+	size_t task_immediate_count = 0;
 
 	// The number of processed tasks.
 	size_t task_count = 0;
