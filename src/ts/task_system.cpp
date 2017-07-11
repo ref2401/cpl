@@ -16,7 +16,7 @@ void kernel_fiber_func(void* data)
 	switch_to_fiber(worker_fiber_context::p_controller_fiber);
 }
 
-void main_thread_func(kernel_func_t p_kernel_func, fiber_pool& fiber_pool,
+void kernel_thread_func(kernel_func_t p_kernel_func, fiber_pool& fiber_pool,
 	fiber_wait_list& fiber_wait_list, std::atomic_bool& exec_flag)
 {
 	thread_fiber_nature			tfn;
@@ -212,7 +212,7 @@ task_system_report launch_task_system(const task_system_desc& desc, kernel_func_
 		gp_task_system = &state;
 		
 		// spawn new worker threads if needed
-		// desc.thread_count - 1 because 1 stands for the main thread
+		// desc.thread_count - 1 because 1 stands for the kernel thread
 		std::vector<std::thread> worker_threads;
 		worker_threads.reserve(desc.thread_count - 1);
 		for (size_t i = 0; i < desc.thread_count - 1; ++i) {
@@ -222,8 +222,8 @@ task_system_report launch_task_system(const task_system_desc& desc, kernel_func_
 				std::ref(state.exec_flag));
 		}
 
-		// run the main thread's func. the kernel func is executed here.
-		main_thread_func(p_kernel_func, fiber_pool, fiber_wait_list, gp_task_system->exec_flag);
+		// run the kernel thread's func. the kernel func is executed here.
+		kernel_thread_func(p_kernel_func, fiber_pool, fiber_wait_list, gp_task_system->exec_flag);
 		assert(!state.exec_flag);
 
 		// finilize the task system

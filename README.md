@@ -20,7 +20,5 @@ Examples:
 - [TBB](https://www.threadingbuildingblocks.org/)
 - [HPX](https://github.com/STEllAR-GROUP/hpx)
 - [GDC2014 talk: Parallelizing the Naughty Dog Engine Using Fibers](http://www.gdcvault.com/play/1022186/Parallelizing-the-Naughty-Dog-Engine)
-
 - https://en.wikipedia.org/wiki/Fiber_(computer_science)
-- Portable Coroutine Library http://freecode.com/projects/libpcl/
 - CFiber http://www.flounder.com/fibers.htm

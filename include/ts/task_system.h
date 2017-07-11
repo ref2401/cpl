@@ -1,6 +1,15 @@
 #ifndef TS_TS_H_
 #define TS_TS_H_
 
+// README (ugly version):
+// Kernel thread is the thread which calls ts::launch_task_system.
+// Kernel function is the function passed to ts::launch_task_system. These function is always
+// performed inside the kernel thread.
+// Each worker thread has a controller fiber. The controller fiber dispathes tasks (inside other fibers)
+// ...
+// The kernel thread has the controller fiber and an addition fiber (kernel fiber) which is used to run the kernel func.
+// The kernel therad never puts the kernel fiber into the fiber pool or fiber wait list.
+
 #include <cassert>
 #include <atomic>
 #include <functional>
@@ -48,7 +57,7 @@ inline bool is_valid_task_system_desc(const task_system_desc& desc) noexcept
 		&& (desc.queue_immediate_size > 0);
 }
 
-task_system_report launch_task_system(const task_system_desc& desc, kernel_func_t p_topmost_func);
+task_system_report launch_task_system(const task_system_desc& desc, kernel_func_t p_kernel_func);
 
 void run(task_desc* p_tasks, size_t count, std::atomic_size_t* p_wait_counter = nullptr);
 

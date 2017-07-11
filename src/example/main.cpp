@@ -30,7 +30,7 @@ void main(int argc, char* argv[])
 	auto report = ts::launch_task_system(ts_desc, run_examples);
 
 	std::cout << std::endl << "[task system report]" << std::endl
-		<< "\thigh_task_count: " << report.high_task_count << ";" << std::endl
+		<< "\thigh_task_count: " << report.task_immediate_count << ";" << std::endl
 		<< "\ttask_count: " << report.task_count << ";" << std::endl;
 	std::cin.get();
 }
