@@ -138,8 +138,14 @@ void worker_fiber_func(void*)
 		// process regular tasks
 		task t;
 		const bool r = task_system::p_queue->try_pop(t);
-		if (r)
-			exec_task(t);
+		if (r) {
+			try {
+				exec_task(t);
+			}
+			catch (...) {
+				task_system::exception_slot.set_exception(std::current_exception());
+			}
+		}
 
 		switch_to_fiber(task_system::p_controller_fiber);
 	}
@@ -159,6 +165,10 @@ void worker_thread_func(fiber_pool& fiber_pool, fiber_wait_list& fiber_wait_list
 	// main loop
 	while (task_system::exec_flag) {
 		switch_to_fiber(p_fiber_to_exec);
+		if (task_system::exception_slot.has_exception()) {
+			task_system::exec_flag = false;
+			return;
+		}
 
 		if (task_system::p_wait_list_counter) {
 			// Fiber's code has called ts::wait_for.
