@@ -59,7 +59,9 @@ struct task_system final {
 struct worker_fiber_context final {
 	static thread_local void* 						p_controller_fiber;
 	static thread_local const std::atomic_size_t*	p_wait_list_counter;
+	static thread_local std::exception_ptr			exception;
 };
+
 
 inline void exec_task(task& t)
 {

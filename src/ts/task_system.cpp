@@ -12,12 +12,19 @@ ts::task_system* gp_task_system;
 void kernel_fiber_func(void* data)
 {
 	kernel_func_t p_kernel_func = static_cast<kernel_func_t>(data);
-	p_kernel_func();
+
+	try {
+		p_kernel_func();
+	}
+	catch (...) {
+		worker_fiber_context::exception = std::current_exception();
+	}
+
 	switch_to_fiber(worker_fiber_context::p_controller_fiber);
 }
 
 void kernel_thread_func(kernel_func_t p_kernel_func, fiber_pool& fiber_pool,
-	fiber_wait_list& fiber_wait_list, std::atomic_bool& exec_flag)
+	fiber_wait_list& fiber_wait_list, exception_slot& exception_slot, std::atomic_bool& exec_flag)
 {
 	thread_fiber_nature			tfn;
 	fiber						kernel_fiber(kernel_fiber_func, 1024, p_kernel_func);
@@ -32,6 +39,11 @@ void kernel_thread_func(kernel_func_t p_kernel_func, fiber_pool& fiber_pool,
 	// main loop
 	while (exec_flag) {
 		switch_to_fiber(p_fiber_to_exec);
+		if (worker_fiber_context::exception) {
+			exception_slot.set_exception(worker_fiber_context::exception);
+			exec_flag = false;
+			return;
+		}
 
 		if (worker_fiber_context::p_wait_list_counter) {
 			// Fiber's code has called ts::wait_for.
@@ -96,7 +108,8 @@ void worker_fiber_func(void* data)
 	switch_to_fiber(worker_fiber_context::p_controller_fiber);
 }
 
-void worker_thread_func(fiber_pool& fiber_pool, fiber_wait_list& fiber_wait_list, std::atomic_bool& exec_flag)
+void worker_thread_func(fiber_pool& fiber_pool, fiber_wait_list& fiber_wait_list,
+	exception_slot& exception_slot, std::atomic_bool& exec_flag)
 {
 	thread_fiber_nature	tmf;
 	void* 				p_fiber_to_exec = fiber_pool.pop();
@@ -104,10 +117,14 @@ void worker_thread_func(fiber_pool& fiber_pool, fiber_wait_list& fiber_wait_list
 	// init fiber execution context
 	worker_fiber_context::p_controller_fiber = tmf.p_handle;
 	worker_fiber_context::p_wait_list_counter = nullptr;
+	worker_fiber_context::exception = nullptr;
 
 	// main loop
 	while (exec_flag) {
 		switch_to_fiber(p_fiber_to_exec);
+		//if (worker_fiber_context::exception) {
+
+		//}
 
 		if (worker_fiber_context::p_wait_list_counter) {
 			// Fiber's code has called ts::wait_for.
@@ -194,6 +211,7 @@ task_system::task_system(size_t queue_size, size_t queue_immediate_size,
 
 thread_local void*						worker_fiber_context::p_controller_fiber;
 thread_local const std::atomic_size_t*	worker_fiber_context::p_wait_list_counter;
+thread_local std::exception_ptr			worker_fiber_context::exception;
 
 // ----- funcs -----
 
@@ -206,9 +224,10 @@ task_system_report launch_task_system(const task_system_desc& desc, kernel_func_
 	try {
 
 		// init the task system
-		task_system	state(desc.queue_size, desc.queue_immediate_size, desc.thread_count);
-		fiber_pool			fiber_pool(desc.fiber_count, worker_fiber_func, desc.fiber_stack_byte_count, &state);
-		fiber_wait_list		fiber_wait_list(desc.fiber_count);
+		task_system		state(desc.queue_size, desc.queue_immediate_size, desc.thread_count);
+		fiber_pool		fiber_pool(desc.fiber_count, worker_fiber_func, desc.fiber_stack_byte_count, &state);
+		fiber_wait_list	fiber_wait_list(desc.fiber_count);
+		exception_slot	exception_slot;
 		gp_task_system = &state;
 		
 		// spawn new worker threads if needed
@@ -219,11 +238,12 @@ task_system_report launch_task_system(const task_system_desc& desc, kernel_func_
 			worker_threads.emplace_back(worker_thread_func,
 				std::ref(fiber_pool),
 				std::ref(fiber_wait_list),
+				std::ref(exception_slot),
 				std::ref(state.exec_flag));
 		}
 
 		// run the kernel thread's func. the kernel func is executed here.
-		kernel_thread_func(p_kernel_func, fiber_pool, fiber_wait_list, gp_task_system->exec_flag);
+		kernel_thread_func(p_kernel_func, fiber_pool, fiber_wait_list, exception_slot, gp_task_system->exec_flag);
 		assert(!state.exec_flag);
 
 		// finilize the task system
@@ -231,6 +251,10 @@ task_system_report launch_task_system(const task_system_desc& desc, kernel_func_
 		state.queue_immediate.set_wait_allowed(false);
 		for (auto& th : worker_threads)
 			th.join();
+
+		// only after all the threads have been joined we may rethrow.
+		if (exception_slot.has_exception())
+			std::rethrow_exception(exception_slot.exception());
 		
 		auto report = gp_task_system->report;
 		gp_task_system = nullptr;

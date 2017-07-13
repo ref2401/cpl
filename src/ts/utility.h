@@ -2,11 +2,45 @@
 #define TS_UTILITY_H_
 
 #include <cassert>
+#include <mutex>
 #include <type_traits>
 #include <vector>
 
 
 namespace ts {
+
+class exception_slot final {
+public:
+
+	exception_slot() = default;
+
+	exception_slot(exception_slot&&) noexcept = default;
+	exception_slot& operator=(exception_slot&&) noexcept = default;
+
+
+	bool has_exception() const
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		return (exception_ != nullptr);
+	}
+
+	std::exception_ptr exception() const noexcept
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		return exception_;
+	}
+
+	void set_exception(std::exception_ptr e) noexcept
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		exception_ = e;
+	}
+
+private:
+
+	std::exception_ptr	exception_;
+	mutable std::mutex	mutex_;
+};
 
 template<typename T>
 class ring_buffer final {
