@@ -39,40 +39,6 @@ private:
 	size_t					push_index_ = 0;
 };
 
-struct task final {
-	std::function<void()>	func;
-	std::atomic_size_t*		p_wait_counter = nullptr;
-};
-
-struct task_system final {
-	task_system(size_t queue_size, size_t queue_immediate_size, size_t worker_thread_count);
-
-	concurrent_queue<task>	queue;
-	concurrent_queue<task>	queue_immediate;
-	std::atomic_bool		exec_flag;
-	task_system_report 		report;
-	const size_t			worker_thread_count;
-};
-
-// Represents thread local communication channel between the thread controller fiber
-// and a worker fiber which is executed in the current thread.
-struct worker_fiber_context final {
-	static thread_local void* 						p_controller_fiber;
-	static thread_local const std::atomic_size_t*	p_wait_list_counter;
-	static thread_local std::exception_ptr			exception;
-};
-
-
-inline void exec_task(task& t)
-{
-	t.func();
-
-	if (t.p_wait_counter) {
-		assert(*t.p_wait_counter > 0);
-		--(*t.p_wait_counter);
-	}
-}
-
 } // namespace ts
 
 #endif // TS_TASK_SYSTEM_INTERNAL_H_

@@ -9,6 +9,7 @@
 
 namespace ts {
 
+// exception_slot is used to convey an exception from one thread(or fiber) to another thread(or fiber).
 class exception_slot final {
 public:
 
