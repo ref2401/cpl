@@ -3,7 +3,6 @@
   <ItemGroup>
     <ClCompile Include="..\src\ts\concurrent_queue_unittest.cpp" />
     <ClCompile Include="..\src\ts\fiber_unittest.cpp" />
-    <ClCompile Include="..\src\ts\task_system_unittest.cpp" />
     <ClCompile Include="..\src\ts\utility_unittest.cpp" />
   </ItemGroup>
 </Project>

@@ -5,7 +5,7 @@ wait counter concept.
 
 ## steps
 - concurrent_queue, ABA problem.
-- task system description
+- ts::run(my_func) if throws the exception message will contain 'my_func' string. Macros impl(
 
 Examples:
 - map reduce

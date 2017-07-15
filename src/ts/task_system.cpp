@@ -1,7 +1,8 @@
 #include "ts/task_system.h"
-#include "ts/task_system_internal.h"
 
 #include <memory>
+#include "ts/fiber.h"
+#include "ts/concurrent_queue.h"
 
 
 namespace {
@@ -13,7 +14,8 @@ struct task final {
 	std::atomic_size_t*		p_wait_counter = nullptr;
 };
 
-struct task_system final {
+// Task system state.
+struct tss final {
 	// Task system global 'fields'.
 	// 
 	static concurrent_queue<task>*	p_queue;
@@ -30,14 +32,14 @@ struct task_system final {
 	static thread_local const std::atomic_size_t*	p_wait_list_counter;
 };
 
-concurrent_queue<task>*					task_system::p_queue;
-concurrent_queue<task>*					task_system::p_queue_immediate;
-exception_slot							task_system::exception_slot;
-size_t									task_system::worker_thread_count;
-task_system_report						task_system::report;
-std::atomic_bool						task_system::exec_flag;
-thread_local void*						task_system::p_controller_fiber;
-thread_local const std::atomic_size_t*	task_system::p_wait_list_counter;
+concurrent_queue<task>*					tss::p_queue = nullptr;
+concurrent_queue<task>*					tss::p_queue_immediate = nullptr;
+exception_slot							tss::exception_slot;
+size_t									tss::worker_thread_count = 0;
+task_system_report						tss::report;
+std::atomic_bool						tss::exec_flag = false;
+thread_local void*						tss::p_controller_fiber = nullptr;
+thread_local const std::atomic_size_t*	tss::p_wait_list_counter = nullptr;
 
 // ----- funcs ------
 
@@ -59,10 +61,10 @@ void kernel_fiber_func(void* data)
 		p_kernel_func();
 	}
 	catch (...) {
-		task_system::exception_slot.set_exception(std::current_exception());
+		tss::exception_slot.set_exception(std::current_exception());
 	}
 
-	switch_to_fiber(task_system::p_controller_fiber);
+	switch_to_fiber(tss::p_controller_fiber);
 }
 
 void kernel_thread_func(kernel_func_t p_kernel_func, fiber_pool& fiber_pool,
@@ -75,36 +77,36 @@ void kernel_thread_func(kernel_func_t p_kernel_func, fiber_pool& fiber_pool,
 
 
 	// init fiber execution context
-	task_system::p_controller_fiber = tfn.p_handle;
-	task_system::p_wait_list_counter = nullptr;
+	tss::p_controller_fiber = tfn.p_handle;
+	tss::p_wait_list_counter = nullptr;
 
 	// main loop
-	while (task_system::exec_flag) {
+	while (tss::exec_flag) {
 		switch_to_fiber(p_fiber_to_exec);
-		if (task_system::exception_slot.has_exception()) {
-			task_system::exec_flag = false;
+		if (tss::exception_slot.has_exception()) {
+			tss::exec_flag = false;
 			return;
 		}
 
-		if (task_system::p_wait_list_counter) {
+		if (tss::p_wait_list_counter) {
 			// Fiber's code has called ts::wait_for.
 			// The current fiber must be put into the wait list.
 			if (p_kernel_wait_counter) {
-				fiber_wait_list.push(p_fiber_to_exec, task_system::p_wait_list_counter);
+				fiber_wait_list.push(p_fiber_to_exec, tss::p_wait_list_counter);
 			}
 			else {
-				p_kernel_wait_counter = task_system::p_wait_list_counter;
+				p_kernel_wait_counter = tss::p_wait_list_counter;
 				assert(p_fiber_to_exec == kernel_fiber.p_handle);
 			}
 
 			p_fiber_to_exec = fiber_pool.pop();
-			task_system::p_wait_list_counter = nullptr;
+			tss::p_wait_list_counter = nullptr;
 		}
 		else {
 			// Fiber's code has finished its current tasks. No wait request occured.
 			// Check if the kernel fiber is completed. If so, then stop the task system.
 			if (p_kernel_wait_counter == nullptr) {
-				task_system::exec_flag = false;
+				tss::exec_flag = false;
 				return;
 			}
 			
@@ -132,25 +134,25 @@ void kernel_thread_func(kernel_func_t p_kernel_func, fiber_pool& fiber_pool,
 
 void worker_fiber_func(void*)
 {
-	while (task_system::exec_flag) {
+	while (tss::exec_flag) {
 		// drain queue_immediate
 
 		// process regular tasks
 		task t;
-		const bool r = task_system::p_queue->try_pop(t);
+		const bool r = tss::p_queue->try_pop(t);
 		if (r) {
 			try {
 				exec_task(t);
 			}
 			catch (...) {
-				task_system::exception_slot.set_exception(std::current_exception());
+				tss::exception_slot.set_exception(std::current_exception());
 			}
 		}
 
-		switch_to_fiber(task_system::p_controller_fiber);
+		switch_to_fiber(tss::p_controller_fiber);
 	}
 
-	switch_to_fiber(task_system::p_controller_fiber);
+	switch_to_fiber(tss::p_controller_fiber);
 }
 
 void worker_thread_func(fiber_pool& fiber_pool, fiber_wait_list& fiber_wait_list)
@@ -158,23 +160,23 @@ void worker_thread_func(fiber_pool& fiber_pool, fiber_wait_list& fiber_wait_list
 	thread_fiber_nature	tmf;
 	void* 				p_fiber_to_exec = fiber_pool.pop();
 
-	// init fiber execution context (thread_local part of the task_system)
-	task_system::p_controller_fiber = tmf.p_handle;
-	task_system::p_wait_list_counter = nullptr;
+	// init fiber execution context (thread_local part of the tss)
+	tss::p_controller_fiber = tmf.p_handle;
+	tss::p_wait_list_counter = nullptr;
 
 	// main loop
-	while (task_system::exec_flag) {
+	while (tss::exec_flag) {
 		switch_to_fiber(p_fiber_to_exec);
-		if (task_system::exception_slot.has_exception()) {
-			task_system::exec_flag = false;
+		if (tss::exception_slot.has_exception()) {
+			tss::exec_flag = false;
 			return;
 		}
 
-		if (task_system::p_wait_list_counter) {
+		if (tss::p_wait_list_counter) {
 			// Fiber's code has called ts::wait_for.
 			// The current fiber must be put into the wait list.
-			fiber_wait_list.push(p_fiber_to_exec, task_system::p_wait_list_counter);
-			task_system::p_wait_list_counter = nullptr;
+			fiber_wait_list.push(p_fiber_to_exec, tss::p_wait_list_counter);
+			tss::p_wait_list_counter = nullptr;
 
 			p_fiber_to_exec = fiber_pool.pop();
 			assert(p_fiber_to_exec);
@@ -197,55 +199,11 @@ void worker_thread_func(fiber_pool& fiber_pool, fiber_wait_list& fiber_wait_list
 
 namespace ts {
 
-// ----- fiber_wait_list -----
-
-fiber_wait_list::fiber_wait_list(size_t fiber_count)
-{
-	wait_list_.resize(fiber_count);
-}
-
-void fiber_wait_list::push(void* p_fiber, const std::atomic_size_t* p_wait_counter)
-{
-	assert(p_fiber);
-	assert(p_wait_counter);
-	assert(*p_wait_counter > 0);
-
-	std::lock_guard<std::mutex> lock(mutex_);
-	assert(push_index_ < wait_list_.size());
-
-	wait_list_[push_index_] = list_entry { p_fiber, p_wait_counter };
-	++push_index_;
-}
-
-bool fiber_wait_list::try_pop(void*& p_out_fiber)
-{
-	std::lock_guard<std::mutex> lock(mutex_);
-	if (push_index_ == 0) return false;
-
-	for (size_t i = push_index_; i > 0; --i) {
-		list_entry& e = wait_list_[i - 1];
-		if (*e.p_wait_counter > 0) continue;
-
-		// remove i - 1 fiber from the list
-		p_out_fiber = e.p_fiber;
-		e.p_fiber = nullptr;
-		e.p_wait_counter = nullptr;
-
-		if (i != push_index_)
-			std::swap(e, wait_list_[push_index_ - 1]);
-
-		--push_index_;
-		return true;
-	}
-
-	return false;
-}
-
 // ----- funcs -----
 
 task_system_report launch_task_system(const task_system_desc& desc, kernel_func_t p_kernel_func)
 {
-	assert(!task_system::p_queue);
+	assert(!tss::p_queue);
 	assert(is_valid_task_system_desc(desc));
 	assert(p_kernel_func);
 
@@ -257,10 +215,10 @@ task_system_report launch_task_system(const task_system_desc& desc, kernel_func_
 		fiber_pool				fiber_pool(desc.fiber_count, worker_fiber_func, desc.fiber_stack_byte_count);
 		fiber_wait_list			fiber_wait_list(desc.fiber_count);
 		
-		task_system::p_queue = &queue;
-		task_system::p_queue_immediate = &queue_immediate;
-		task_system::exec_flag = true;
-		task_system::worker_thread_count = desc.thread_count;
+		tss::p_queue = &queue;
+		tss::p_queue_immediate = &queue_immediate;
+		tss::exec_flag = true;
+		tss::worker_thread_count = desc.thread_count;
 		
 		// spawn new worker threads if needed
 		// desc.thread_count - 1 because 1 stands for the kernel thread
@@ -274,7 +232,7 @@ task_system_report launch_task_system(const task_system_desc& desc, kernel_func_
 
 		// run the kernel thread's func. the kernel func is executed here.
 		kernel_thread_func(p_kernel_func, fiber_pool, fiber_wait_list);
-		assert(!task_system::exec_flag);
+		assert(!tss::exec_flag);
 
 		// finilize the task system
 		queue.set_wait_allowed(false);
@@ -283,19 +241,19 @@ task_system_report launch_task_system(const task_system_desc& desc, kernel_func_
 			th.join();
 
 		// only after all the threads have been joined we may rethrow.
-		if (task_system::exception_slot.has_exception())
-			std::rethrow_exception(task_system::exception_slot.exception());
+		if (tss::exception_slot.has_exception())
+			std::rethrow_exception(tss::exception_slot.exception());
 		
-		return task_system::report;
+		return tss::report;
 	}
 	catch (...) {
 		std::throw_with_nested(std::runtime_error("Task system execution error."));
 	}
 }
 
-void run(task_desc* p_tasks, size_t count, std::atomic_size_t* p_wait_counter)
+void run(std::atomic_size_t* p_wait_counter, task_desc* p_tasks, size_t count)
 {
-	assert(task_system::p_queue);
+	assert(tss::p_queue);
 	assert(p_tasks);
 	assert(count > 0);
 
@@ -303,24 +261,24 @@ void run(task_desc* p_tasks, size_t count, std::atomic_size_t* p_wait_counter)
 		*p_wait_counter = count;
 
 	for (size_t i = 0; i < count; ++i)
-		task_system::p_queue->emplace(std::move(p_tasks[i].func), p_wait_counter);
+		tss::p_queue->emplace(std::move(p_tasks[i].func), p_wait_counter);
 
-	task_system::report.task_count += count;
+	tss::report.task_count += count;
 }
 
 size_t thread_count() noexcept
 {
-	return task_system::worker_thread_count;
+	return tss::worker_thread_count;
 }
 
 void wait_for(const std::atomic_size_t& wait_counter)
 {
-	assert(current_fiber() != task_system::p_controller_fiber);
+	assert(current_fiber() != tss::p_controller_fiber);
 
 	if (wait_counter == 0) return;
 
-	task_system::p_wait_list_counter = &wait_counter;
-	switch_to_fiber(task_system::p_controller_fiber);
+	tss::p_wait_list_counter = &wait_counter;
+	switch_to_fiber(tss::p_controller_fiber);
 }
 
 } // namespace ts

@@ -2,22 +2,12 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClInclude Include="..\src\ts\fiber.h" />
-    <ClInclude Include="..\src\ts\task_system_internal.h" />
     <ClInclude Include="..\src\ts\utility.h" />
-    <ClInclude Include="..\include\ts\concurrent_queue.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\ts\task_system.h">
-      <Filter>include</Filter>
-    </ClInclude>
+    <ClInclude Include="..\include\ts\task_system.h" />
+    <ClInclude Include="..\include\ts\concurrent_queue.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\ts\fiber.cpp" />
     <ClCompile Include="..\src\ts\task_system.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <Filter Include="include">
-      <UniqueIdentifier>{32cd2851-bdf3-4649-ae81-88a6ff645618}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
 </Project>

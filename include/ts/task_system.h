@@ -59,47 +59,39 @@ inline bool is_valid_task_system_desc(const task_system_desc& desc) noexcept
 
 task_system_report launch_task_system(const task_system_desc& desc, kernel_func_t p_kernel_func);
 
-void run(task_desc* p_tasks, size_t count, std::atomic_size_t* p_wait_counter = nullptr);
-
-inline void run(void(*func)())
-{
-	task_desc t(func);
-	run(&t, 1, nullptr);
-}
-
-inline void run(void(*func)(), std::atomic_size_t& wait_counter)
-{
-	task_desc t(func);
-	run(&t, 1, &wait_counter);
-}
-
-inline void run(task_desc& t)
-{
-	run(&t, 1, nullptr);
-}
-
-inline void run(task_desc& t, std::atomic_size_t& wait_counter)
-{
-	run(&t, 1, &wait_counter);
-}
-
-template<size_t count>
-inline void run(task_desc(&tasks)[count])
-{
-	run(tasks, count, nullptr);
-}
-
-template<size_t count>
-inline void run(task_desc(&tasks)[count], std::atomic_size_t& wait_counter)
-{
-	run(tasks, count, &wait_counter);
-}
-
 // How many worker threads are used by the current task system.
 // The value is equal to task_system_desc.thread_count
 size_t thread_count() noexcept;
 
 void wait_for(const std::atomic_size_t& wait_counter);
+
+void run(std::atomic_size_t* p_wait_counter, task_desc* p_tasks, size_t count);
+
+template<typename F, typename... Args>
+inline void run(std::atomic_size_t& wait_counter, F&& f, Args&&... args)
+{
+	task_desc td(std::forward<F>(f), std::forward<Args>(args)...);
+	run(&wait_counter, &td, size_t(1));
+}
+
+template<typename F, typename... Args>
+inline void run(F&& f, Args&&... args)
+{
+	task_desc td(std::forward<F>(f), std::forward<Args>(args)...);
+	run(nullptr, &td, size_t(1));
+}
+
+template<size_t count>
+inline void run(std::atomic_size_t& wait_counter, task_desc(&tasks)[count])
+{
+	run(&wait_counter, tasks, count);
+}
+
+template<size_t count>
+inline void run(task_desc(&tasks)[count])
+{
+	run(nullptr, tasks, count);
+}
 
 } // namespace ts
 

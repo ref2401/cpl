@@ -65,7 +65,7 @@ void simple_map_example()
 		float(offset));
 
 	std::atomic_size_t wait_counter;
-	ts::run(tasks, wait_counter);
+	ts::run(wait_counter, tasks);
 	ts::wait_for(wait_counter);
 
 	auto dur = std::chrono::high_resolution_clock::now() - time_start;
