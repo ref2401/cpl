@@ -251,17 +251,17 @@ task_system_report launch_task_system(const task_system_desc& desc, kernel_func_
 	}
 }
 
-void run(std::atomic_size_t* p_wait_counter, task_desc* p_tasks, size_t count)
+void run(std::atomic_size_t* p_wait_counter, std::function<void()>* p_funcs, size_t count)
 {
 	assert(tss::p_queue);
-	assert(p_tasks);
+	assert(p_funcs);
 	assert(count > 0);
 
 	if (p_wait_counter)
 		*p_wait_counter = count;
 
 	for (size_t i = 0; i < count; ++i)
-		tss::p_queue->emplace(std::move(p_tasks[i].func), p_wait_counter);
+		tss::p_queue->emplace(std::move(p_funcs[i]), p_wait_counter);
 
 	tss::report.task_count += count;
 }

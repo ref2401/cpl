@@ -21,17 +21,6 @@ namespace ts {
 
 using kernel_func_t = void(*)();
 
-struct task_desc final {
-	task_desc() noexcept = default;
-
-	template<typename F, typename... Args>
-	explicit task_desc(F&& f, Args&&... args)
-		: func(std::bind(std::forward<F>(f), std::forward<Args>(args)...))
-	{}
-
-	std::function<void()> func;
-};
-
 struct task_system_desc final {
 	size_t thread_count = 0;
 	size_t fiber_count = 0;
@@ -65,32 +54,40 @@ size_t thread_count() noexcept;
 
 void wait_for(const std::atomic_size_t& wait_counter);
 
-void run(std::atomic_size_t* p_wait_counter, task_desc* p_tasks, size_t count);
+void run(std::atomic_size_t* p_wait_counter, std::function<void()>* p_funcs, size_t count);
 
-template<typename F, typename... Args>
-inline void run(std::atomic_size_t& wait_counter, F&& f, Args&&... args)
+inline void run(std::atomic_size_t& wait_counter, std::function<void()>& func)
 {
-	task_desc td(std::forward<F>(f), std::forward<Args>(args)...);
-	run(&wait_counter, &td, size_t(1));
+	run(&wait_counter, &func, 1);
 }
 
-template<typename F, typename... Args>
-inline void run(F&& f, Args&&... args)
+inline void run(std::function<void()>& func)
 {
-	task_desc td(std::forward<F>(f), std::forward<Args>(args)...);
-	run(nullptr, &td, size_t(1));
+	run(nullptr, &func, 1);
 }
 
 template<size_t count>
-inline void run(std::atomic_size_t& wait_counter, task_desc(&tasks)[count])
+inline void run(std::atomic_size_t& wait_counter, std::function<void()>(&funcs)[count])
 {
-	run(&wait_counter, tasks, count);
+	run(&wait_counter, funcs, count);
 }
 
 template<size_t count>
-inline void run(task_desc(&tasks)[count])
+inline void run(std::function<void()>(&funcs)[count])
 {
-	run(nullptr, tasks, count);
+	run(nullptr, funcs, count);
+}
+
+inline void run(std::atomic_size_t& wait_counter, void(*func)())
+{
+	std::function<void()> f(func);
+	run(&wait_counter, &f, 1);
+}
+
+inline void run(void(*func)())
+{
+	std::function<void()> f(func);
+	run(nullptr, &f, 1);
 }
 
 } // namespace ts
