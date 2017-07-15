@@ -13,7 +13,7 @@
 void run_examples()
 {
 	std::atomic_size_t wait_counter;
-	ts::run(wait_counter, example::simple_map_example);
+	ts::run(example::simple_map_example, wait_counter);
 	ts::wait_for(wait_counter);
 }
 

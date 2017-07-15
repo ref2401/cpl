@@ -37,28 +37,28 @@ namespace example {
 void simple_map_example()
 {
 	constexpr size_t item_count = 10'000'000;
-	constexpr size_t tile_count = 3;
-	constexpr size_t tile_size = item_count / tile_count;
+	constexpr size_t task_count = 3;
+	constexpr size_t task_size = item_count / task_count;
 
 	const auto time_start = std::chrono::high_resolution_clock::now();
 	std::cout << "[simple_map_example]" << std::endl;
-	to_stream(std::cout, "\tfloat_count", item_count);
-	to_stream(std::cout, "\ttile_count", tile_count);
-	to_stream(std::cout, "\tfloats per tile", tile_size);
+	to_stream(std::cout, "\titem_count", item_count);
+	to_stream(std::cout, "\ttask_count", task_count);
+	to_stream(std::cout, "\titems per task", task_size);
 
-	std::function<void()> tasks[tile_count];
+	std::function<void()> tasks[task_count];
 	std::vector<float> sequence(item_count);
 	
-	for (size_t i = 0; i < tile_count; ++i) {
-		const size_t offset = i * tile_size;
+	for (size_t i = 0; i < task_count; ++i) {
+		const size_t offset = i * task_size;
 		auto b = sequence.begin() + offset;
-		auto e = (i < tile_count - 1) ? (b + tile_size) : (sequence.end());
+		auto e = (i < task_count - 1) ? (b + task_size) : (sequence.end());
 
 		tasks[i] = [b, e, offset] { std::iota(b, e, float(offset)); };
 	}
 
 	std::atomic_size_t wait_counter;
-	ts::run(wait_counter, tasks);
+	ts::run(tasks, wait_counter);
 	ts::wait_for(wait_counter);
 
 	const auto dur = std::chrono::high_resolution_clock::now() - time_start;

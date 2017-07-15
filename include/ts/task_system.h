@@ -48,46 +48,56 @@ inline bool is_valid_task_system_desc(const task_system_desc& desc) noexcept
 
 task_system_report launch_task_system(const task_system_desc& desc, kernel_func_t p_kernel_func);
 
-// How many worker threads are used by the current task system.
-// The value is equal to task_system_desc.thread_count
-size_t thread_count() noexcept;
-
 void wait_for(const std::atomic_size_t& wait_counter);
 
-void run(std::atomic_size_t* p_wait_counter, std::function<void()>* p_funcs, size_t count);
-
-inline void run(std::atomic_size_t& wait_counter, std::function<void()>& func)
-{
-	run(&wait_counter, &func, 1);
-}
-
-inline void run(std::function<void()>& func)
-{
-	run(nullptr, &func, 1);
-}
+void run(std::function<void()>* p_funcs, size_t count, std::atomic_size_t* p_wait_counter = nullptr);
 
 template<size_t count>
-inline void run(std::atomic_size_t& wait_counter, std::function<void()>(&funcs)[count])
+inline void run(std::function<void()>(&funcs)[count], std::atomic_size_t& wait_counter)
 {
-	run(&wait_counter, funcs, count);
+	run(funcs, count, &wait_counter);
+}
+
+template<typename F>
+inline void run(F&& func, std::atomic_size_t& wait_counter)
+{
+	std::function<void()> f(std::forward<F>(func));
+	run(&f, 1, &wait_counter);
+}
+
+inline void run(std::function<void()>& func, std::atomic_size_t& wait_counter)
+{
+	run(&func, 1, &wait_counter);
+}
+
+inline void run(void(*func)(), std::atomic_size_t& wait_counter)
+{
+	std::function<void()> f(func);
+	run(&f, 1, &wait_counter);
 }
 
 template<size_t count>
 inline void run(std::function<void()>(&funcs)[count])
 {
-	run(nullptr, funcs, count);
+	run(funcs, count);
 }
 
-inline void run(std::atomic_size_t& wait_counter, void(*func)())
+template<typename F>
+inline void run(F&& func)
 {
-	std::function<void()> f(func);
-	run(&wait_counter, &f, 1);
+	std::function<void()> f(std::forward<F>(func));
+	run(&f, 1);
+}
+
+inline void run(std::function<void()>& func)
+{
+	run(&func, 1);
 }
 
 inline void run(void(*func)())
 {
 	std::function<void()> f(func);
-	run(nullptr, &f, 1);
+	run(&f, 1);
 }
 
 } // namespace ts

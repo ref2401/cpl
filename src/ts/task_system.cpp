@@ -21,7 +21,6 @@ struct tss final {
 	static concurrent_queue<task>*	p_queue;
 	static concurrent_queue<task>*	p_queue_immediate;
 	static exception_slot			exception_slot;
-	static size_t					worker_thread_count;
 	static task_system_report		report;
 	static std::atomic_bool			exec_flag;
 
@@ -35,7 +34,6 @@ struct tss final {
 concurrent_queue<task>*					tss::p_queue = nullptr;
 concurrent_queue<task>*					tss::p_queue_immediate = nullptr;
 exception_slot							tss::exception_slot;
-size_t									tss::worker_thread_count = 0;
 task_system_report						tss::report;
 std::atomic_bool						tss::exec_flag = false;
 thread_local void*						tss::p_controller_fiber = nullptr;
@@ -208,7 +206,6 @@ task_system_report launch_task_system(const task_system_desc& desc, kernel_func_
 	assert(p_kernel_func);
 
 	try {
-
 		// init the task system
 		concurrent_queue<task>	queue(desc.queue_size);
 		concurrent_queue<task>	queue_immediate(desc.queue_immediate_size);
@@ -218,7 +215,6 @@ task_system_report launch_task_system(const task_system_desc& desc, kernel_func_
 		tss::p_queue = &queue;
 		tss::p_queue_immediate = &queue_immediate;
 		tss::exec_flag = true;
-		tss::worker_thread_count = desc.thread_count;
 		
 		// spawn new worker threads if needed
 		// desc.thread_count - 1 because 1 stands for the kernel thread
@@ -251,7 +247,7 @@ task_system_report launch_task_system(const task_system_desc& desc, kernel_func_
 	}
 }
 
-void run(std::atomic_size_t* p_wait_counter, std::function<void()>* p_funcs, size_t count)
+void run(std::function<void()>* p_funcs, size_t count, std::atomic_size_t* p_wait_counter)
 {
 	assert(tss::p_queue);
 	assert(p_funcs);
@@ -264,11 +260,6 @@ void run(std::atomic_size_t* p_wait_counter, std::function<void()>* p_funcs, siz
 		tss::p_queue->emplace(std::move(p_funcs[i]), p_wait_counter);
 
 	tss::report.task_count += count;
-}
-
-size_t thread_count() noexcept
-{
-	return tss::worker_thread_count;
 }
 
 void wait_for(const std::atomic_size_t& wait_counter)
